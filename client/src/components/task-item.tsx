@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Task } from '@shared/schema';
-import { Edit, Trash2, CheckCircle } from './icons';
+import { Edit, Trash2, CheckCircle, ChevronDown, ChevronUp } from './icons';
 import { cn } from '@/lib/utils';
 import { formatDate, isDateOverdue, isDateToday } from '@/lib/date-utils';
+import { Badge } from '@/components/ui/badge';
 
 interface TaskItemProps {
   task: Task;
@@ -17,6 +18,8 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   // Determine if task is overdue
   const isOverdue = task.dueDate ? isDateOverdue(new Date(task.dueDate)) : false;
   
@@ -34,8 +37,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return 'text-gray-600';
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
+
   return (
-    <li className="bg-white shadow overflow-hidden rounded-md">
+    <li className="bg-white shadow overflow-hidden rounded-md mb-3">
       <div 
         className={cn(
           'border-l-4 px-4 py-4 sm:px-6',
@@ -56,44 +63,94 @@ const TaskItem: React.FC<TaskItemProps> = ({
               </button>
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between">
                 <p 
                   className={cn(
-                    'text-sm font-medium truncate',
+                    'text-sm font-medium',
                     task.completed ? 'line-through text-gray-500' : 'text-primary'
                   )}
                 >
                   {task.title}
                 </p>
-                <div className="ml-2 flex-shrink-0 flex">
+                <div className="mt-1 sm:mt-0 sm:ml-2 flex-shrink-0 flex flex-wrap gap-2">
+                  <Badge variant="outline" className="font-normal text-xs">
+                    {task.category}
+                  </Badge>
+                  
                   {task.dueDate && (
-                    <p className={cn('text-sm', getDateColor())}>
+                    <span className={cn('text-xs px-2 py-1 rounded-full border', getDateColor())}>
                       {formatDate(new Date(task.dueDate))}
-                    </p>
+                    </span>
                   )}
                 </div>
               </div>
+              
+              {/* Always show first note if exists */}
               {task.notes && task.notes.length > 0 && (
                 <div className="mt-2">
                   <div 
                     className={cn(
-                      'text-sm line-clamp-2',
+                      'text-sm',
                       task.completed ? 'text-gray-500' : 'text-gray-700'
                     )}
                   >
-                    {task.notes.length === 1 ? (
-                      <span>{task.notes[0]}</span>
-                    ) : (
-                      <span>
-                        {task.notes[0]}
-                        <span className="text-gray-500 text-xs ml-1">
-                          {`+ ${task.notes.length - 1} więcej`}
-                        </span>
+                    <div className="flex items-start">
+                      <span className="mr-2 flex-grow">
+                        {isExpanded ? (
+                          // Show all notes when expanded
+                          <ul className="space-y-1 list-disc pl-5">
+                            {task.notes.map((note, index) => (
+                              <li key={index} className="text-sm">{note}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          // Show only first note when collapsed
+                          <span>{task.notes[0]}</span>
+                        )}
                       </span>
-                    )}
+                      
+                      {/* Only show expand/collapse button if there are multiple notes */}
+                      {task.notes.length > 1 && (
+                        <button 
+                          onClick={toggleExpand}
+                          className="ml-1 text-gray-400 hover:text-gray-600 flex items-center"
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="h-4 w-4" />
+                              <span className="text-xs ml-1">Zwiń</span>
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-4 w-4" />
+                              <span className="text-xs ml-1">{`+ ${task.notes.length - 1} więcej`}</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
+              
+              {/* Status and date information */}
+              <div className="mt-2 flex flex-wrap text-xs text-gray-500 gap-2">
+                {task.completed && (
+                  <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                    Wykonano
+                  </span>
+                )}
+                {isOverdue && !task.completed && (
+                  <span className="bg-red-50 text-red-700 px-2 py-1 rounded-full">
+                    Po terminie
+                  </span>
+                )}
+                {task.dueDate && isDateToday(new Date(task.dueDate)) && !task.completed && (
+                  <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded-full">
+                    Dzisiaj
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="ml-4 flex-shrink-0 flex space-x-2">
