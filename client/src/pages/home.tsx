@@ -8,6 +8,7 @@ import TaskForm from '@/components/task-form';
 import TaskFilter from '@/components/task-filter';
 import MobileNavigation from '@/components/mobile-navigation';
 import MobileFilter from '@/components/mobile-filter';
+import { sortCategoriesByRomanNumeral } from '@/lib/utils';
 
 export default function Home() {
   const { toast } = useToast();
@@ -108,7 +109,8 @@ export default function Home() {
   // Get unique categories from tasks
   const categories = React.useMemo(() => {
     const uniqueCategories = Array.from(new Set(tasks.map(task => task.category)));
-    return uniqueCategories.filter(Boolean).sort();
+    // Sort by Roman numerals
+    return uniqueCategories.filter(Boolean).sort(sortCategoriesByRomanNumeral);
   }, [tasks]);
 
   // Open add task modal

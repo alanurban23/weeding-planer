@@ -2,6 +2,7 @@ import React from 'react';
 import { Task } from '@shared/schema';
 import TaskItem from './task-item';
 import { Plus } from './icons';
+import { sortCategoriesByRomanNumeral } from '@/lib/utils';
 
 interface TaskListProps {
   groupedTasks: Record<string, Task[]>;
@@ -64,25 +65,30 @@ const TaskList: React.FC<TaskListProps> = ({
     );
   }
 
+  // Import is already declared at the top of the file
+
   // Display tasks grouped by category
   return (
     <div className="space-y-8">
-      {Object.entries(groupedTasks).map(([category, tasks]) => (
-        <div key={category}>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">{category}</h2>
-          <ul className="space-y-3">
-            {tasks.map(task => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onToggleCompletion={onToggleTaskCompletion}
-                onEdit={onEditTask}
-                onDelete={onDeleteTask}
-              />
-            ))}
-          </ul>
-        </div>
-      ))}
+      {Object.entries(groupedTasks)
+        // Sort categories by Roman numerals
+        .sort(([categoryA], [categoryB]) => sortCategoriesByRomanNumeral(categoryA, categoryB))
+        .map(([category, tasks]) => (
+          <div key={category}>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">{category}</h2>
+            <ul className="space-y-3">
+              {tasks.map(task => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onToggleCompletion={onToggleTaskCompletion}
+                  onEdit={onEditTask}
+                  onDelete={onDeleteTask}
+                />
+              ))}
+            </ul>
+          </div>
+        ))}
     </div>
   );
 };
