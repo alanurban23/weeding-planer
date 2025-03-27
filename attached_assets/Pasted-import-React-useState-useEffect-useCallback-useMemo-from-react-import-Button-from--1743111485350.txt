@@ -1,0 +1,872 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import {
+    Plus,
+    CheckCircle,
+    Edit,
+    Trash2,
+    Calendar as CalendarIcon,
+    List,
+    Check,
+    AlertTriangle,
+    XCircle,
+    ChevronDown,
+    ChevronUp,
+} from '@/components/icons';
+import { cn } from '@/lib/utils';
+import { format, parseISO, isToday, isPast, isFuture, isSameDay } from 'date-fns';
+import { pl } from 'date-fns/locale';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+// ===============================
+// utils/date-utils.ts
+// ===============================
+
+export const formatDate = (date: Date | undefined, formatStr: string = 'dd.MM.yyyy'): string => {
+    if (!date) return '';
+    return format(date, formatStr, { locale: pl });
+};
+
+export const parseDate = (dateString: string): Date | undefined => {
+    try {
+        return parseISO(dateString);
+    } catch (error) {
+        return undefined;
+    }
+};
+
+export const isDateToday = (date: Date): boolean => isToday(date);
+export const isDatePast = (date: Date): boolean => isPast(date);
+export const isDateFuture = (date: Date): boolean => isFuture(date);
+export const isSameDayFunc = (date1: Date, date2: Date): boolean => isSameDay(date1, date2);
+
+// ===============================
+// domain/task.ts
+// ===============================
+export interface Task {
+    id: string;
+    title: string;
+    dueDate?: Date;
+    notes: string[];
+    completed: boolean;
+    category: string;
+}
+
+// ===============================
+// usecases/task-repository.ts
+// ===============================
+export interface TaskRepository {
+    getTasks(): Task[];
+    addTask(task: Task): void;
+    updateTask(id: string, updates: Partial<Task>): void;
+    deleteTask(id: string): void;
+    completeTask(id: string): void;
+}
+
+export class InMemoryTaskRepository implements TaskRepository {
+    private tasks: Task[] = [];
+
+    constructor(initialTasks: Task[] = []) {
+        this.tasks = initialTasks;
+    }
+
+    getTasks(): Task[] {
+        return this.tasks;
+    }
+
+    addTask(task: Task): void {
+        this.tasks.push(task);
+    }
+
+    updateTask(id: string, updates: Partial<Task>): void {
+        this.tasks = this.tasks.map(t => t.id === id ? { ...t, ...updates } : t);
+    }
+
+    deleteTask(id: string): void {
+        this.tasks = this.tasks.filter(t => t.id !== id);
+    }
+
+    completeTask(id: string): void {
+        this.tasks = this.tasks.map(t =>
+            t.id === id ? { ...t, completed: !t.completed } : t
+        );
+    }
+}
+
+// ===============================
+// data/tasks.ts
+// ===============================
+//  This file contains the initial task data.
+
+export const initialTasks: Task[] = [
+    // I. Ustalenia Ogólne
+    {
+        id: '1',
+        title: 'Ustalenie daty ślubu i rezerwacja miejsca',
+        notes: [
+            '4 września 2026',
+            'Villa Presto',
+            'Brzóza Królewska sala nr 2',
+            'Zaliczka 3500 zł do 31 Marca 2025',
+            'Płatność 50% kaucji do 20 sierpnia 2026',
+            'Druga płatność 50% - 4 dni po 8 września',
+        ],
+        completed: false,
+        dueDate: parseDate('2026-09-04'),
+        category: 'Ustalenia Ogólne',
+    },
+    {
+        id: '5',
+        title: 'Określenie budżetu i listy gości',
+        notes: [
+            'Cena za talerzyk: 315 zł',
+            'Orientacyjna liczba gości: ok 115 os',
+            'Lista Gości: [Lista Gości](https://www.notion.so/Lista-Go-ci-1c1411b6e1a080c3aadaf6bf27d53ab5?pvs=21)',
+        ],
+        completed: false,
+        category: 'Ustalenia Ogólne',
+    },
+    {
+        id: '6',
+        title: 'Wybór stylu i charakteru uroczystości',
+        notes: ['Tematyka, kolorystyka'],
+        completed: false,
+        category: 'Ustalenia Ogólne',
+    },
+
+    // II. Wybór Podwykonawców
+    {
+        id: '7',
+        title: 'Wybór fotografa, kamerzysty',
+        notes: [
+            'Podpisana umowa',
+            'Cena: 12300 zł po weselu (Każda dodatkowa godzina to 500 złotych)',
+            'Firma: Cozawesele',
+            'REZERWACJA JEST POTWIERDZONA - umowa znajduje się w załączniku. W terminie do 7 dni prosimy o przesłanie nam podpisanej umowy.',
+            'Na około dwa tygodnie przed ślubem, skontaktujemy się już bezpośrednio z Wami w celu ustalenia dokładniejszych szczegółów realizacji oraz poznania dokładnego harmonogramu wesela oraz niezbędnych adresów i kontaktów do osób obsługujących Wasze wesele.',
+        ],
+        completed: true,
+        category: 'Wybór Podwykonawców',
+    },
+    {
+        id: '11',
+        title: 'Wybór zespołu muzycznego',
+        notes: [
+            'Podpisana umowa: całość 10 000 zł w dniu wesela, kaucja 1 000 zł zapłacona.',
+            'Tydzień przed, dać informacje, jakie zabawy weselne.',
+            'Dać znać, żeby grali pod domem.',
+            'Zastanowić się, dodatkowo prawa muzyczne w kościele.',
+        ],
+        completed: true,
+        category: 'Wybór Podwykonawców',
+    },
+    {
+        id: '14',
+        title: 'Oprawa Muzyczna w Kościele',
+        notes: [
+            'Moja przedszkolanka chce, żeby to była dziewczyna lub skrzypce.',
+            'Zapytaj się, czy organista przyjdzie do pracy i ile.',
+        ],
+        completed: false,
+        category: 'Wybór Podwykonawców',
+    },
+    { id: '17', title: 'Wybór i rezerwacja florysty', notes: ['Wybrana florystka, skontaktować się z nią, co dokładnie chcemy.'], completed: true, category: 'Wybór Podwykonawców' },
+    { id: '18', title: 'Zamówienie tortu weselnego', notes: [], completed: false, category: 'Wybór Podwykonawców' },
+    {
+        id: '19',
+        title: 'Barman',
+        notes: [
+            'Wysłać umowę, płatność w dzień wesela: 3350 zł (150 os).',
+            'Firma: Weddingcoctail.pl Marcin.',
+        ],
+        completed: false,
+        category: 'Wybór Podwykonawców'
+    },
+
+    // III. Przygotowania do Ceremonii i Formalności (Kościół)
+    {
+        id: '22',
+        title: 'Zarezerwowanie terminu w kościele',
+        notes: ['Jutro.'],
+        completed: false,
+        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+        category: 'Przygotowania do Ceremonii',
+    },
+    {
+        id: '23',
+        title: 'Nauki przedmałżeńskie',
+        notes: [
+            'Rozpoczęcie przygotowań do nauk przedmałżeńskich (jeśli ślub kościelny).',
+            '25-27 Kurs weekendowy w Rakszawie nauki przedmałżeńskie o 18:00 [na podstawie Twojej wypowiedzi].',
+        ],
+        completed: false,
+        dueDate: parseDate('2025-01-25'),
+        category: 'Przygotowania do Ceremonii',
+    },
+    {
+        id: '24',
+        title: 'Protokół ślubny',
+        notes: ['Nie wcześniej niż pół roku od ślubu [na podstawie Twojej wypowiedzi].'],
+        completed: false,
+        dueDate: parseDate('2026-03-04'),
+        category: 'Przygotowania do Ceremonii',
+    },
+    { id: '25', title: 'Dowody osobiste', notes: ['W dzień ślubu [na podstawie Twojej wypowiedzi].'], completed: false, dueDate: parseDate('2026-09-04'), category: 'Przygotowania do Ceremonii' },
+    { id: '26', title: 'Świadectwa z nauk religii', notes: ['podstawówka, gimnazjum, liceum [na podstawie Twojej wypowiedzi].'], completed: false, category: 'Przygotowania do Ceremonii' },
+    { id: '27', title: 'Poradnia Małżeńska', notes: ['Zgłosić się do Poradnii Małżeńskiej po naukach [na podstawie Twojej wypowiedzi].'], completed: false, category: 'Przygotowania do Ceremonii' },
+    { id: '28', title: 'Świadectwo chrztu', notes: ['Pobrać świadectwo chrztu z żołynii od proboszcza [na podstawie Twojej wypowiedzi].'], completed: false, category: 'Przygotowania do Ceremonii' },
+    { id: '29', title: 'Zaświadczenie z USC', notes: ['Max 6 mc wcześniej [na podstawie Twojej wypowiedzi].'], completed: false, dueDate: parseDate('2026-03-04'), category: 'Przygotowania do Ceremonii' },
+    {
+        id: '32',
+        title: 'Ustalenie dokładnego planu ceremonii',
+        notes: ['Ustalenie z organistą i księdzem.'],
+        completed: false,
+        category: 'Przygotowania do Ceremonii',
+    },
+
+    // IV. Wygląd Młodej Pary
+    { id: '33', title: 'Wybór sukni ślubnej', notes: [], completed: false, category: 'Wygląd Młodej Pary' },
+    { id: '37', title: 'Wybór garnituru', notes: [], completed: false, category: 'Wygląd Młodej Pary' },
+    {
+        id: '41',
+        title: 'Zarezerwowanie próbnej fryzury i makijażu',
+        notes: [
+            'Czeka Na Paule kiedyś się umówić.',
+            'Fryzura nie została wybrana.',
+            'We wrześniu umówić się na makijaż ślubny i próbny [na podstawie Twojej wypowiedzi].',
+        ],
+        completed: false,
+        category: 'Wygląd Młodej Pary',
+    },
+    { id: '44', title: 'Paznokcie', notes: [], completed: false, category: 'Wygląd Młodej Pary' },
+    { id: '34', title: 'Ostatnie przymiarki sukni ślubnej i stroju Pana Młodego', notes: [], completed: false, dueDate: parseDate('2026-09-01'), category: 'Wygląd Młodej Pary' },
+    { id: '35', title: 'Sprawdzenie, czy wszystkie stroje są gotowe', notes: [], completed: false, dueDate: parseDate('2026-09-03'), category: 'Wygląd Młodej Pary' },
+    { id: '36', title: 'Bielizna Panny młodej, buty', notes: [], completed: false, category: 'Wygląd Młodej Pary' },
+    { id: '40', title: 'Garnitury', notes: ['Garnitury, ksawciu i natan'], completed: false, category: 'Wygląd Młodej Pary' },
+    { id: '43', title: 'Makijaż i fryzura', notes: [], completed: false, dueDate: parseDate('2026-09-04'), category: 'Wygląd Młodej Pary' },
+    { id: '69', title: 'Ubieranie się', notes: [], completed: false, dueDate: parseDate('2026-09-04'), category: 'Wygląd Młodej Pary' },
+
+    // V. Dodatkowe Elementy i Atrakcje
+    {
+        id: '45',
+        title: 'Przemyślenie atrakcji weselnych',
+        notes: [
+            'Kupić Instax.',
+            'Ogarnąć zimne ognie i fajerwerki.',
+        ],
+        completed: false,
+        category: 'Dodatkowe Elementy',
+    },
+    {
+        id: '48',
+        title: 'Zarezerwowanie pokoi hotelowych dla gości przyjezdnych',
+        notes: ['Dowiemy się przy potwierdzeniach, czy będą chcieli mieć pokój.'],
+        completed: false,
+        category: 'Dodatkowe Elementy',
+    },
+    {
+        id: '49',
+        title: 'Transport dla gości',
+        notes: ['Zorganizowanie transportu dla gości [na podstawie naszej rozmowy].'],
+        completed: false,
+        category: 'Dodatkowe Elementy'
+    },
+    { id: '50', title: 'Zamówienie zaproszeń', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '51', title: 'Wysłanie lub przekazanie zaproszeń', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '52', title: 'Wyszukanie i zamówienie obrączek ślubnych', notes: ['Materiał Pallad.'], completed: false, category: 'Dodatkowe Elementy' },
+    {
+        id: '58',
+        title: 'Sfinalizowanie menu weselnego',
+        notes: ['Dwa tygodnie przed startem wesela.'],
+        completed: false,
+        category: 'Dodatkowe Elementy'
+    },
+    { id: '59', title: 'Wybór piosenki na pierwszy taniec i ewentualne ćwiczenia', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '60', title: 'Odbiór obrączek i ich ewentualne wygrawerowanie', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    {
+        id: '50',
+        title: 'Potwierdzenie obecności gości',
+        notes: ['Sprawdzić w umowie.'],
+        completed: false,
+        category: 'Dodatkowe Elementy',
+    },
+    { id: '51', title: 'bukiety dla panny młodej', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '53', title: 'niania dla naszych dzieci', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '54', title: 'animatorka?', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '51', title: 'prezenty dla gosci', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '52', title: 'szyszki', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '55', title: 'podziękowania dla rodziców', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    {
+        id: '72',
+        title: 'Zapłacenie opłat wymaganych w dniu ślubu i przygotowanie kopert',
+        notes: ['Fotograf i kamerzysta, zespół weselny, barman.'],
+        completed: false,
+        dueDate: parseDate('2026-09-04'),
+        category: 'Dodatkowe Elementy'
+    },
+    { id: '56', title: 'Zamówienie reszty papeterii (winietki, menu)', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    {
+        id: '58',
+        title: 'Ustalenie dokładnego planu wesela z obsługą sali',
+        notes: ['Ustalenie z szefem villi presto.'],
+        completed: false,
+        category: 'Dodatkowe Elementy',
+    },
+    { id: '60', title: 'Kupić alkochol', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+    { id: '59', title: 'Zorganizowanie sesji narzeczeńskiej', notes: [], completed: false, category: 'Dodatkowe Elementy' },
+
+    // VI. Dzień Przed Ślubem
+    { id: '61', title: 'Próba generalna (jeśli planowana)', notes: [], completed: false, dueDate: parseDate('2026-09-03'), category: 'Dzień Przed Ślubem' },
+    { id: '62', title: 'Ustalenie miejsca spotkania z fotografem i kamerzystą', notes: [], completed: false, dueDate: parseDate('2026-09-03'), category: 'Dzień Przed Ślubem' },
+    { id: '63', title: 'Sprawdzenie, czy wszystkie stroje są gotowe', notes: [], completed: false, dueDate: parseDate('2026-09-03'), category: 'Dzień Przed Ślubem' },
+    { id: '64', title: 'Przygotowanie alkoholu i dekoracji na sali', notes: [], completed: false, dueDate: parseDate('2026-09-03'), category: 'Dzień Przed Ślubem' },
+    { id: '65', title: 'Przygotowanie kosmetyczki z niezbędnymi rzeczami', notes: [], completed: false, dueDate: parseDate('2026-09-03'), category: 'Dzień Przed Ślubem' },
+
+    // VII. W Dniu Ślubu
+    { id: '66', title: 'Śniadanie', notes: [], completed: false, dueDate: parseDate('2026-09-04'), category: 'W Dniu Ślubu' },
+    { id: '67', title: 'Relaks', notes: ['Nie stresujcie się drobnymi szczegółami.'], completed: false, dueDate: parseDate('2026-09-04'), category: 'W Dniu Ślubu' },
+    { id: '68', title: 'Makijaż i fryzura', notes: [], completed: false, dueDate: parseDate('2026-09-04'), category: 'W Dniu Ślubu' },
+    { id: '69', title: 'Ubieranie się', notes: [], completed: false, dueDate: parseDate('2026-09-04'), category: 'W Dniu Ślubu' },
+    { id: '70', title: 'Zebranie wszystkich ważnych rzeczy', notes: ['Obrączki, dokumenty, telefon'], completed: false, dueDate: parseDate('2026-09-04'), category: 'W Dniu Ślubu' },
+    { id: '71', title: 'Cieszenie się każdym momentem tego wyjątkowego dnia!', notes: [], completed: false, dueDate: parseDate('2026-09-04'), category: 'W Dniu Ślubu' },
+
+    // VIII. Dzień Poprawin
+    { id: '73', title: 'Ustalenie planu dnia poprawin', notes: [], completed: false, dueDate: parseDate('2026-09-05'), category: 'Dzień Poprawin' },
+];
+
+const taskRepository: TaskRepository = new InMemoryTaskRepository(initialTasks);
+
+const taskCategories = [
+    "Ustalenia Ogólne",
+    "Wybór Podwykonawców",
+    "Przygotowania do Ceremonii",
+    "Wygląd Młodej Pary",
+    "Dodatkowe Elementy",
+    "Dzień Przed Ślubem",
+    "W Dniu Ślubu",
+    "Dzień Poprawin"
+];
+
+const WeddingPlannerApp = () => {
+    const [tasks, setTasks] = useState<Task[]>(taskRepository.getTasks());
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+    const [isCreatingTask, setIsCreatingTask] = useState(false);
+    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTaskDueDate, setNewTaskDueDate] = useState<Date | undefined>();
+    const [newTaskNotes, setNewTaskNotes] = useState<string[]>([]);
+    const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+    const [newTaskCategory, setNewTaskCategory] = useState<string>(taskCategories[0]);
+    const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+    const [newNoteInput, setNewNoteInput] = useState('');
+
+    // Load tasks from localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedTasks = localStorage.getItem('weddingTasks');
+            if (savedTasks) {
+                try {
+                    const loadedTasks = JSON.parse(savedTasks);
+                    // Ensure dates are parsed correctly
+                    loadedTasks.forEach((task: any) => {
+                        if (task.dueDate) {
+                            task.dueDate = parseISO(task.dueDate);
+                        }
+                    });
+                    // Use loadedTasks to initialize the repository
+                    (taskRepository as InMemoryTaskRepository).tasks = loadedTasks;
+                    setTasks(loadedTasks);  // And also set the state
+                } catch (error) {
+                    console.error("Failed to parse tasks from localStorage", error);
+                    localStorage.removeItem('weddingTasks');
+                }
+            }
+        }
+    }, []);
+
+    // Save tasks to localStorage
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('weddingTasks', JSON.stringify(tasks));
+        }
+    }, [tasks]);
+
+    const handleAddTask = useCallback(() => {
+        if (!newTaskTitle.trim()) return;
+
+        const newTask: Task = {
+            id: crypto.randomUUID(),
+            title: newTaskTitle,
+            dueDate: newTaskDueDate,
+            notes: newTaskNotes,
+            completed: false,
+            category: newTaskCategory,
+        };
+        taskRepository.addTask(newTask);
+        setTasks(taskRepository.getTasks());
+        setNewTaskTitle('');
+        setNewTaskDueDate(undefined);
+        setNewTaskNotes([]);
+        setNewTaskCategory(taskCategories[0]);
+        setIsCreatingTask(false);
+        setNewNoteInput('');
+    }, [newTaskTitle, newTaskDueDate, newTaskNotes, newTaskCategory]);
+
+    const handleEditTask = useCallback((id: string) => {
+        setEditingTaskId(id);
+        const taskToEdit = tasks.find((task) => task.id === id);
+        if (taskToEdit) {
+            setNewTaskTitle(taskToEdit.title);
+            setNewTaskDueDate(taskToEdit.dueDate);
+            setNewTaskNotes(taskToEdit.notes);
+            setNewTaskCategory(taskToEdit.category);
+        }
+    }, [tasks]);
+
+    const handleUpdateTask = useCallback((id: string) => {
+        taskRepository.updateTask(id, {
+            title: newTaskTitle,
+            dueDate: newTaskDueDate,
+            notes: newTaskNotes,
+            category: newTaskCategory,
+        });
+        setTasks(taskRepository.getTasks());
+        setNewTaskTitle('');
+        setNewTaskDueDate(undefined);
+        setNewTaskNotes([]);
+        setNewTaskCategory(taskCategories[0]);
+        setEditingTaskId(null);
+        setNewNoteInput('');
+    }, [newTaskTitle, newTaskDueDate, newTaskNotes, newTaskCategory]);
+
+    const handleDeleteTask = useCallback((id: string) => {
+        taskRepository.deleteTask(id);
+        setTasks(taskRepository.getTasks());
+        setEditingTaskId(null);
+    }, []);
+
+    const handleCompleteTask = useCallback((id: string) => {
+        taskRepository.completeTask(id);
+        setTasks(taskRepository.getTasks());
+    }, []);
+
+    const sortedTasks = useMemo(() => {
+        return [...taskRepository.getTasks()].sort((a, b) => {
+            if (a.dueDate && b.dueDate) {
+                return a.dueDate.getTime() - b.dueDate.getTime();
+            } else if (a.dueDate) {
+                return -1;
+            }else if (b.dueDate) {
+                return 1;
+            }
+            return a.title.localeCompare(b.title, 'pl');
+        });
+    }, []);
+
+    const filteredTasks = useMemo(() => {
+        if (!selectedDate) return sortedTasks;
+        return sortedTasks.filter(task =>
+            task.dueDate && isSameDayFunc(task.dueDate, selectedDate)
+        );
+    }, [sortedTasks, selectedDate]);
+
+    const handleAddNote = () => {
+        if (newNoteInput.trim()) {
+            if (editingTaskId) {
+                // Edytowanie istniejącego zadania
+                setTasks(tasks.map(task =>
+                    task.id === editingTaskId
+                        ? { ...task, notes: [...task.notes, newNoteInput.trim()] }
+                        : task
+                ));
+            } else {
+                // Dodawanie notatki do nowego zadania (przed jego utworzeniem)
+                setNewTaskNotes(prevNotes => [...prevNotes, newNoteInput.trim()]);
+            }
+            setNewNoteInput('');
+        }
+    };
+
+    const handleDeleteNote = (noteIndex: number) => {
+        if (editingTaskId) {
+            // Edytowanie istniejącego zadania
+            setTasks(tasks.map(task =>
+                task.id === editingTaskId
+                    ? { ...task, notes: task.notes.filter((_, index) => index !== noteIndex) }
+                    : task
+            ));
+        } else {
+            // Usuwanie notatki z nowego zadania (przed jego utworzeniem)
+            setNewTaskNotes(prevNotes => prevNotes.filter((_, index) => index !== noteIndex));
+        }
+    };
+
+    const toggleCategoryExpansion = (category: string) => {
+        setExpandedCategories(prevCategories =>
+            prevCategories.includes(category)
+                ? prevCategories.filter(c => c !== category)
+                : [...prevCategories, category]
+        );
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
+            <div className="max-w-4xl mx-auto">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6 text-center">
+                    Organizer Ślubny i Lista Zadań
+                </h1>
+
+                {/* Kalendarz */}
+                <div className="mb-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Wybierz datę:
+                    </h2>
+                    <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        className="rounded-md"
+                        locale={pl}
+                        captionLayout="dropdown-buttons"
+                        fromYear={2024}
+                        toYear={2027}
+                        styles={{
+                            head_cell: {
+                                color: 'hsl(var(--muted))',
+                            },
+                            button: {
+                                '&:hover': {
+                                    backgroundColor: 'hsl(var(--primary) / 0.1)',
+                                },
+                            },
+                            nav_button: {
+                                color: 'hsl(var(--primary))',
+                                '&:hover': {
+                                    backgroundColor: 'hsl(var(--primary) / 0.1)',
+                                },
+                            },
+                            caption: {
+                                color: 'hsl(var(--foreground))',
+                            },
+                            selected: {
+                                backgroundColor: 'hsl(var(--primary))',
+                                color: 'hsl(var(--primary-foreground))',
+                                '&:hover': {
+                                    backgroundColor: 'hsl(var(--primary))',
+                                    color: 'hsl(var(--primary-foreground))',
+                                },
+                            },
+                            today: {
+                                color: 'hsl(var(--primary))',
+                                fontWeight: 'bold',
+                            },
+                            day: {
+                                color: 'hsl(var(--foreground))',
+                                '&:hover': {
+                                    backgroundColor: 'hsl(var(--primary) / 0.1)',
+                                },
+                            },
+                        }}
+                    />
+                    {selectedDate && (
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                            Wybrana data: {formatDate(selectedDate)}
+                        </p>
+                    )}
+                </div>
+
+                {/* Lista Zadań */}
+                <div className="space-y-4">
+                    <AnimatePresence>
+                        {filteredTasks.map((task) => (
+                            <motion.div
+                                key={task.id}
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.2 }}
+                                className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4
+                                            border border-gray-200 dark:border-gray-700"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4 flex-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleCompleteTask(task.id)}
+                                            className={cn(
+                                                "rounded-full",
+                                                task.completed
+                                                    ? "text-green-500 dark:text-green-400"
+                                                    : "text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                                            )}
+                                        >
+                                            {task.completed ? (
+                                                <CheckCircle className="h-6 w-6" />
+                                            ) : (
+                                                <Check className="h-6 w-6" />
+                                            )}
+                                        </Button>
+                                        <div className="flex-1">
+                                            <h3
+                                                className={cn(
+                                                    "text-lg font-semibold",
+                                                    task.completed
+                                                        ? "text-gray-500 dark:text-gray-400 line-through"
+                                                        : "text-gray-900 dark:text-white"
+                                                )}
+                                            >
+                                                {task.title}
+                                            </h3>
+                                            {task.dueDate && (
+                                                <p className={cn(
+                                                    "text-sm",
+                                                    isDatePast(task.dueDate) && !task.completed
+                                                        ? "text-red-500 dark:text-red-400"
+                                                        : "text-gray-600 dark:text-gray-400"
+                                                )}>
+                                                    Termin: {formatDate(task.dueDate)}
+                                                    {isDateToday(task.dueDate) && " (Dzisiaj)"}
+                                                    {isDatePast(task.dueDate) && !task.completed && " (Po terminie)"}
+                                                    {isDateFuture(task.dueDate) && " (Nadchodzący)"}
+                                                </p>
+                                            )}
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                Kategoria: {task.category}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEditTask(task.id)}
+                                            className="text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400"
+                                        >
+                                            <Edit className="h-5 w-5" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleDeleteTask(task.id)}
+                                            className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                        >
+                                            <Trash2 className="h-5 w-5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="mt-4">
+                                    <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300">Notatki:</h4>
+                                    {task.notes.length > 0 ? (
+                                        <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400">
+                                            {task.notes.map((note, index) => (
+                                                <li key={index} className="flex items-center justify-between">
+                                                    {note}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleDeleteNote(index)}
+                                                        className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                                    >
+                                                        <XCircle className="h-4 w-4" />
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-gray-500 dark:text-gray-400">Brak notatek.</p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+
+                    {/* Wyświetlanie komunikatu, gdy nie ma zadań na dany dzień */}
+                    {filteredTasks.length === 0 && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 text-center">
+                            <p className="text-gray-600 dark:text-gray-400">
+                                Brak zadań na wybrany dzień.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Przycisk Dodawania Zadania */}
+                    {!isCreatingTask && (
+                        <Button
+                            onClick={() => {
+                                setIsCreatingTask(true);
+                                setEditingTaskId(null); // Reset editing state when adding a new task
+                                setNewTaskTitle(''); // Clear input fields
+                                setNewTaskDueDate(undefined);
+                                setNewTaskNotes([]);
+                                setNewTaskCategory(taskCategories[0]);
+                            }}
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg
+                                        transition-colors duration-200 flex items-center justify-center gap-2"
+                        >
+                            <Plus className="h-5 w-5" />
+                            Dodaj nowe zadanie
+                        </Button>
+                    )}
+
+                    {/* Formularz Dodawania/Edycji Zadania */}
+                    <AnimatePresence>
+                        {isCreatingTask || editingTaskId ? (
+                            <motion.div
+                                initial={{ opacity: 0, y: -20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 20 }}
+                                transition={{ duration: 0.3 }}
+                                className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 space-y-4
+                                            border border-gray-200 dark:border-gray-700"
+                            >
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                                    {editingTaskId ? 'Edytuj zadanie' : 'Dodaj nowe zadanie'}
+                                </h2>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Tytuł zadania
+                                    </label>
+                                    <Input
+                                        id="task-title"
+                                        value={newTaskTitle}
+                                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                                        placeholder="Wprowadź tytuł zadania"
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="task-due-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Termin wykonania
+                                    </label>
+                                    <div className="relative">
+                                        <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500 dark:text-gray-400 pointer-events-none" />
+                                        <Calendar
+                                            mode="single"
+                                            selected={newTaskDueDate}
+                                            onSelect={setNewTaskDueDate}
+                                            className="w-full pl-10 rounded-md"
+                                            locale={pl}
+                                            placeholder="Wybierz termin"
+                                            captionLayout="dropdown-buttons"
+                                            fromYear={2024}
+                                            toYear={2027}
+                                            styles={{
+                                                container: {
+                                                    width: '100%',
+                                                },
+                                                input: {
+                                                    paddingLeft: '2.5rem', // Make space for the icon
+                                                    width: '100%',
+                                                },
+                                                ...
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+
+                                 <div className="space-y-2">
+                                    <label htmlFor="task-category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Kategoria
+                                    </label>
+                                    <Select
+                                        value={newTaskCategory}
+                                        onValueChange={setNewTaskCategory}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Wybierz kategorię" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {taskCategories.map(category => (
+                                                <SelectItem key={category} value={category}>
+                                                    {category}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="task-notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Notatki
+                                    </label>
+                                    {newTaskNotes.length > 0 && (
+                                        <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-400 mb-2">
+                                            {newTaskNotes.map((note, index) => (
+                                                <li key={index} className="flex items-center justify-between">
+                                                    {note}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleDeleteNote(index)}
+                                                        className="text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                                    >
+                                                        <XCircle className="h-4 w-4" />
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <Textarea
+                                            id="task-notes"
+                                            value={newNoteInput}
+                                            onChange={(e) => setNewNoteInput(e.target.value)}
+                                            placeholder="Dodaj notatkę"
+                                            className="flex-1"
+                                        />
+                                        <Button
+                                            onClick={handleAddNote}
+                                            className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600
+                                                        font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+                                        >
+                                            Dodaj
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-4">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            setIsCreatingTask(false);
+                                            setEditingTaskId(null);
+                                            setNewTaskTitle('');
+                                            setNewTaskDueDate(undefined);
+                                            setNewTaskNotes([]);
+                                             setNewTaskCategory(taskCategories[0]);
+                                            setNewNoteInput('');
+                                        }}
+                                        className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                        Anuluj
+                                    </Button>
+                                    <Button
+                                        onClick={() => {
+                                            if (editingTaskId) {
+                                                handleUpdateTask(editingTaskId);
+                                            } else {
+                                                handleAddTask();
+                                            }
+                                        }}
+                                        className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg
+                                                    transition-colors duration-200"
+                                    >
+                                        {editingTaskId ? 'Zapisz zmiany' : 'Dodaj zadanie'}
+                                    </Button>
+                                </div>
+                            </motion.div>
+                        ) : null}
+                    </AnimatePresence>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default WeddingPlannerApp;
