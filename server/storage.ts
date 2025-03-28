@@ -769,6 +769,11 @@ export class DatabaseStorage implements IStorage {
 }
 
 // Używamy implementacji PostgreSQL przez Drizzle jako głównego źródła danych
+// Sprawdzimy dostępność providerów bazy danych w db-provider.ts
+// Storage będzie inicjalizowane dynamicznie przez routes.ts
+console.log('Inicjalizacja storage w toku... Szczegóły będą dostępne po uruchomieniu serwera.');
+
+// Eksportujemy instancję DatabaseStorage jako domyślną
 export const storage = new DatabaseStorage();
 
 // Alternatywne implementacje (dla celów deweloperskich)

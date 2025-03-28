@@ -1,16 +1,30 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { supabaseStorage } from "./supabase-storage";
+import { getDatabaseStorage } from "./db-provider";
 import { InsertTask, UpdateTask, insertTaskSchema, updateTaskSchema } from "@shared/schema";
 import { z } from "zod";
+import { log } from "./vite";
 
-// Wybierz implementację przechowywania danych
-// Możemy przełączać się między pamięcią lokalną (storage) a Supabase (supabaseStorage)
-// Tymczasowo używamy lokalnego przechowywania, ponieważ występują problemy z połączeniem do Supabase
-const dataStorage = storage;
+// Zmienna przechowująca aktualny provider bazy danych
+let dataStorage = storage;
+
+// Inicjalizacja odpowiedniego storage na podstawie dostępnych baz danych
+async function initializeStorage() {
+  try {
+    // Pobierz storage od wybranego providera
+    dataStorage = await getDatabaseStorage();
+    log(`Provider bazy danych został zainicjalizowany.`, "database");
+  } catch (error) {
+    console.error(`Błąd inicjalizacji providera bazy danych:`, error);
+    log(`Używam domyślnego storage jako fallback.`, "database");
+    dataStorage = storage;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Inicjalizujemy odpowiedni provider bazy danych
+  await initializeStorage();
   // Tasks API routes
   app.get("/api/tasks", async (req: Request, res: Response) => {
     try {

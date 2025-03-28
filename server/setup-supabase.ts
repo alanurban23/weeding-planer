@@ -6,8 +6,14 @@ const supabaseKey = process.env.SUPABASE_API_KEY;
 
 // Sprawdzenie, czy zmienne środowiskowe zostały ustawione
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Brak wymaganych zmiennych środowiskowych SUPABASE_URL i SUPABASE_API_KEY');
+  console.error('Błąd: Brak wymaganych zmiennych środowiskowych SUPABASE_URL i SUPABASE_API_KEY');
+  console.error('Upewnij się, że ustawiłeś te zmienne środowiskowe, aby móc połączyć się z Supabase.');
+  console.error('Możesz to zrobić używając funkcji ask_secrets w Replit.');
+  process.exit(1);
 }
+
+console.log('Używam URL Supabase:', supabaseUrl);
+console.log('Klucz API został poprawnie znaleziony (nie wyświetlamy go ze względów bezpieczeństwa)');
 
 // Przygotowanie opcji dla klienta Supabase
 const options = {
@@ -31,15 +37,20 @@ async function setupDatabase() {
     console.log('Próba utworzenia tabeli bezpośrednio przez dodanie rekordów...');
 
     // Najpierw spróbujemy dodać rekord, co może się nie udać jeśli tabela nie istnieje
+    console.log('Tworzenie zadania testowego...');
+    
+    const currentDate = new Date().toISOString();
     const testTask = {
       id: 'test-task',
       title: 'Test task',
       notes: ['To jest zadanie testowe'],
       completed: false,
       category: 'Test',
-      due_date: new Date().toISOString(),
-      created_at: new Date().toISOString()
+      due_date: currentDate,
+      created_at: currentDate
     };
+    
+    console.log('Zadanie testowe:', JSON.stringify(testTask, null, 2));
 
     const { error: testError } = await supabase
       .from('tasks')
@@ -82,10 +93,32 @@ CREATE TABLE IF NOT EXISTS tasks (
     // Jeśli dostaliśmy inny błąd, wyświetlimy go
     if (testError) {
       console.error('Inny błąd podczas próby dostępu do tabeli tasks:');
-      console.error('Error code:', testError.code);
-      console.error('Error message:', testError.message);
-      console.error('Error details:', testError.details);
+      
+      if (testError.code) {
+        console.error('Error code:', testError.code);
+      }
+      
+      if (testError.message) {
+        console.error('Error message:', testError.message);
+      }
+      
+      if (testError.details) {
+        console.error('Error details:', testError.details);
+      }
+      
       console.error('Full error object:', JSON.stringify(testError, null, 2));
+      
+      // Sprawdźmy czy nie ma problemów z połączeniem
+      if (testError.message && testError.message.includes('Failed to fetch')) {
+        console.error('\nWygląda na to, że wystąpił problem z połączeniem z Supabase.');
+        console.error('Upewnij się, że:');
+        console.error('1. URL Supabase jest poprawny');
+        console.error('2. Klucz API jest prawidłowy (użyj klucza service_role)');
+        console.error('3. Masz połączenie z internetem');
+      }
+      
+      // Wyświetl przykładowy kod SQL do ręcznego utworzenia tabeli
+      console.log('\nMożesz również spróbować ręcznie utworzyć tabelę w panelu Supabase SQL Editor używając kodu z pliku supabase-setup.sql');
       return;
     }
 
@@ -196,7 +229,19 @@ CREATE TABLE IF NOT EXISTS tasks (
     console.log('Konfiguracja bazy danych Supabase zakończona pomyślnie!');
 
   } catch (error) {
-    console.error('Wystąpił nieoczekiwany błąd podczas konfiguracji bazy danych:', error);
+    console.error('Wystąpił nieoczekiwany błąd podczas konfiguracji bazy danych:');
+    
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    } else {
+      console.error('Unknown error:', error);
+    }
+    
+    console.log('\nProszę sprawdzić następujące rzeczy:');
+    console.log('1. Czy klucze API są poprawne - URL i klucz API powinny pochodzić z panelu Supabase');
+    console.log('2. Czy masz dostęp do internetu');
+    console.log('3. Spróbuj wykonać zapytanie SQL z pliku supabase-setup.sql bezpośrednio w panelu Supabase SQL Editor');
   }
 }
 
