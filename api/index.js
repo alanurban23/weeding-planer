@@ -48,14 +48,27 @@ app.get('/api/tasks', (req, res) => {
   }
 });
 
+// Import required modules for notes API
+import { fetchNotes } from '../server/supabase-notes';
+import { supabase } from '../server/supabase';
+
 // API route for notes
-app.get('/api/notes', (req, res) => {
+app.get('/api/notes', async (req, res) => {
   try {
-    // Return empty array if no notes are found
-    res.json([]);
+    // Initialize Supabase connection
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+
+    // Fetch notes from Supabase
+    const notes = await fetchNotes();
+    res.json(notes);
   } catch (error) {
     console.error('Error fetching notes:', error);
-    res.status(500).json({ error: 'Failed to fetch notes' });
+    res.status(500).json({ 
+      error: 'Failed to fetch notes',
+      message: error.message 
+    });
   }
 });
 
