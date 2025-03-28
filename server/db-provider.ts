@@ -78,11 +78,13 @@ export async function checkPostgresConnection(): Promise<boolean> {
 export async function selectDatabaseProvider(): Promise<DatabaseInfo> {
   console.log('Wybieranie providera bazy danych...');
   
-  // Sprawdź połączenie z Supabase
-  const supabaseAvailable = await checkSupabaseConnection();
+  // Sprawdź czy są ustawione zmienne środowiskowe dla Supabase
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_API_KEY;
   
-  if (supabaseAvailable) {
-    console.log('✅ Supabase jest dostępne i skonfigurowane.');
+  // Zawsze używaj Supabase jeśli zmienne środowiskowe są ustawione
+  if (supabaseUrl && supabaseKey) {
+    console.log('✅ Supabase jest skonfigurowane - używam Supabase jako bazy danych.');
     return {
       provider: DatabaseProvider.SUPABASE,
       isAvailable: true,
@@ -91,7 +93,7 @@ export async function selectDatabaseProvider(): Promise<DatabaseInfo> {
     };
   }
   
-  // Sprawdź połączenie z PostgreSQL
+  // Sprawdź połączenie z PostgreSQL tylko jeśli Supabase nie jest skonfigurowane
   const postgresAvailable = await checkPostgresConnection();
   
   if (postgresAvailable) {
@@ -104,7 +106,7 @@ export async function selectDatabaseProvider(): Promise<DatabaseInfo> {
     };
   }
   
-  // Fallback do pamięci
+  // Fallback do pamięci tylko jeśli ani Supabase ani PostgreSQL nie są dostępne
   console.log('⚠️ Żadna baza danych nie jest dostępna. Używam pamięci jako fallback.');
   return {
     provider: DatabaseProvider.MEMORY,

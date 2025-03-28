@@ -17,6 +17,132 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 const TASKS_TABLE = 'tasks';
 const NOTES_TABLE = 'notes';
 
+// Funkcja do sprawdzenia i utworzenia tabeli tasks jeśli nie istnieje
+export const ensureTasksTableExists = async (): Promise<void> => {
+  try {
+    // Sprawdź czy tabela tasks istnieje
+    const { error } = await supabase.from(TASKS_TABLE).select('count').limit(1);
+    
+    if (error && error.code === '42P01') { // Kod błędu dla "relation does not exist"
+      console.log('Tabela tasks nie istnieje. Tworzenie tabeli...');
+      
+      // Utwórz tabelę tasks
+      const { error: createError } = await supabase.rpc('create_table_if_not_exists', {
+        table_name: TASKS_TABLE,
+        table_definition: `
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          notes TEXT[] NOT NULL,
+          completed BOOLEAN NOT NULL DEFAULT FALSE,
+          category TEXT NOT NULL,
+          due_date TIMESTAMP,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        `
+      });
+      
+      if (createError) {
+        console.error('Błąd podczas tworzenia tabeli tasks:', createError);
+        
+        // Alternatywna metoda - użyj SQL bezpośrednio
+        console.log('Próba utworzenia tabeli tasks za pomocą SQL...');
+        
+        // Sprawdź czy funkcja execute_sql istnieje
+        try {
+          await supabase.rpc('execute_sql', {
+            sql: `
+              CREATE TABLE IF NOT EXISTS ${TASKS_TABLE} (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                notes TEXT[] NOT NULL,
+                completed BOOLEAN NOT NULL DEFAULT FALSE,
+                category TEXT NOT NULL,
+                due_date TIMESTAMP,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+              );
+            `
+          });
+          console.log('Tabela tasks została utworzona pomyślnie.');
+        } catch (sqlError) {
+          console.error('Nie można utworzyć tabeli tasks:', sqlError);
+          console.log('Uwaga: Aplikacja może nie działać poprawnie bez tabeli tasks.');
+        }
+      } else {
+        console.log('Tabela tasks została utworzona pomyślnie.');
+      }
+    } else if (error) {
+      console.error('Błąd podczas sprawdzania tabeli tasks:', error);
+    } else {
+      console.log('Tabela tasks istnieje.');
+    }
+  } catch (err) {
+    console.error('Nieoczekiwany błąd podczas sprawdzania/tworzenia tabeli tasks:', err);
+  }
+};
+
+// Funkcja do sprawdzenia i utworzenia tabeli notes jeśli nie istnieje
+export const ensureNotesTableExists = async (): Promise<void> => {
+  try {
+    // Sprawdź czy tabela notes istnieje
+    const { error } = await supabase.from(NOTES_TABLE).select('count').limit(1);
+    
+    if (error && error.code === '42P01') { // Kod błędu dla "relation does not exist"
+      console.log('Tabela notes nie istnieje. Tworzenie tabeli...');
+      
+      // Utwórz tabelę notes
+      const { error: createError } = await supabase.rpc('create_table_if_not_exists', {
+        table_name: NOTES_TABLE,
+        table_definition: `
+          id TEXT PRIMARY KEY,
+          content TEXT NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        `
+      });
+      
+      if (createError) {
+        console.error('Błąd podczas tworzenia tabeli notes:', createError);
+        
+        // Alternatywna metoda - użyj SQL bezpośrednio
+        console.log('Próba utworzenia tabeli notes za pomocą SQL...');
+        
+        try {
+          await supabase.rpc('execute_sql', {
+            sql: `
+              CREATE TABLE IF NOT EXISTS ${NOTES_TABLE} (
+                id TEXT PRIMARY KEY,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+              );
+            `
+          });
+          console.log('Tabela notes została utworzona pomyślnie.');
+        } catch (sqlError) {
+          console.error('Nie można utworzyć tabeli notes:', sqlError);
+          console.log('Uwaga: Aplikacja może nie działać poprawnie bez tabeli notes.');
+        }
+      } else {
+        console.log('Tabela notes została utworzona pomyślnie.');
+      }
+    } else if (error) {
+      console.error('Błąd podczas sprawdzania tabeli notes:', error);
+    } else {
+      console.log('Tabela notes istnieje.');
+    }
+  } catch (err) {
+    console.error('Nieoczekiwany błąd podczas sprawdzania/tworzenia tabeli notes:', err);
+  }
+};
+
+// Sprawdź i utwórz tabele przy inicjalizacji
+(async () => {
+  try {
+    await ensureTasksTableExists();
+    await ensureNotesTableExists();
+    console.log('Inicjalizacja tabel Supabase zakończona.');
+  } catch (err) {
+    console.error('Błąd podczas inicjalizacji tabel Supabase:', err);
+  }
+})();
+
 /**
  * Funkcja do konwersji daty z formatu Supabase do JavaScript Date
  */
