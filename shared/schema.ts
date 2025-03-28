@@ -24,8 +24,8 @@ export const tasks = pgTable("tasks", {
   notes: text("notes").array().notNull(),
   completed: boolean("completed").notNull().default(false),
   category: text("category").notNull(),
-  dueDate: timestamp("dueDate"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  due_date: timestamp("due_date"),
+  created_at: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Niestandardowy schemat zadania uwzględniający datę

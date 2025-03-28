@@ -640,4 +640,11 @@ export class MemStorage implements IStorage {
   }
 }
 
+// Importuj implementację Supabase storage
+import { supabaseStorage } from './supabase-storage';
+
+// Używaj pamięci (dla celów deweloperskich)
 export const storage = new MemStorage();
+
+// Gdy tabela tasks zostanie utworzona w Supabase, możemy użyć tego:
+// export const storage = supabaseStorage;
