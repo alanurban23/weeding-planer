@@ -1,4 +1,4 @@
-import { Task, InsertTask, UpdateTask, tasks } from "@shared/schema";
+import { Task, InsertTask, UpdateTask, tasks, Note, InsertNote, UpdateNote, notes } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { supabaseStorage } from './supabase-storage';
@@ -14,16 +14,24 @@ export interface IStorage {
   updateTask(id: string, updates: UpdateTask): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
   completeTask(id: string): Promise<Task | undefined>;
+  
+  // Note related methods
+  getNotes(): Promise<Note[]>;
+  addNote(note: InsertNote): Promise<Note>;
+  updateNote(id: string, updates: UpdateNote): Promise<Note | undefined>;
+  deleteNote(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, any>;
   private tasks: Map<string, Task>;
+  private notes: Map<string, Note>;
   currentId: number;
 
   constructor() {
     this.users = new Map();
     this.tasks = new Map();
+    this.notes = new Map();
     this.currentId = 1;
     
     // Add sample tasks for initial data
@@ -118,6 +126,38 @@ export class MemStorage implements IStorage {
     
     this.tasks.set(id, updatedTask);
     return updatedTask;
+  }
+  
+  // Note methods
+  async getNotes(): Promise<Note[]> {
+    return Array.from(this.notes.values());
+  }
+
+  async addNote(note: InsertNote): Promise<Note> {
+    const newNote: Note = {
+      ...note,
+      createdAt: new Date(),
+    };
+    
+    this.notes.set(note.id, newNote);
+    return newNote;
+  }
+
+  async updateNote(id: string, updates: UpdateNote): Promise<Note | undefined> {
+    const note = this.notes.get(id);
+    if (!note) return undefined;
+    
+    const updatedNote: Note = {
+      ...note,
+      ...updates,
+    };
+    
+    this.notes.set(id, updatedNote);
+    return updatedNote;
+  }
+
+  async deleteNote(id: string): Promise<boolean> {
+    return this.notes.delete(id);
   }
 
   private initializeSampleTasks() {
@@ -765,6 +805,66 @@ export class DatabaseStorage implements IStorage {
       dueDate: updatedTask.due_date,
       createdAt: updatedTask.created_at
     };
+  }
+  
+  // Note methods
+  async getNotes(): Promise<Note[]> {
+    const notesList = await db.select().from(notes).orderBy(desc(notes.created_at));
+    
+    // Konwersja z snake_case na camelCase
+    return notesList.map(note => ({
+      id: note.id,
+      content: note.content,
+      createdAt: note.created_at,
+    }));
+  }
+
+  async addNote(note: InsertNote): Promise<Note> {
+    // Konwersja z camelCase na snake_case
+    const [insertedNote] = await db
+      .insert(notes)
+      .values({
+        id: note.id,
+        content: note.content,
+        created_at: new Date(),
+      })
+      .returning();
+    
+    // Konwersja z snake_case na camelCase
+    return {
+      id: insertedNote.id,
+      content: insertedNote.content,
+      createdAt: insertedNote.created_at,
+    };
+  }
+
+  async updateNote(id: string, updates: UpdateNote): Promise<Note | undefined> {
+    // Sprawdź czy notatka istnieje
+    const [existingNote] = await db.select().from(notes).where(eq(notes.id, id));
+    if (!existingNote) {
+      return undefined;
+    }
+    
+    // Aktualizuj notatkę
+    const [updatedNote] = await db
+      .update(notes)
+      .set({
+        content: updates.content || existingNote.content,
+      })
+      .where(eq(notes.id, id))
+      .returning();
+    
+    // Konwersja z snake_case na camelCase
+    return {
+      id: updatedNote.id,
+      content: updatedNote.content,
+      createdAt: updatedNote.created_at,
+    };
+  }
+
+  async deleteNote(id: string): Promise<boolean> {
+    const result = await db.delete(notes).where(eq(notes.id, id)).returning();
+    return result.length > 0;
   }
 }
 

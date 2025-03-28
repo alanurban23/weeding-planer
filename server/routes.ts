@@ -2,7 +2,7 @@ import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getDatabaseStorage } from "./db-provider";
-import { InsertTask, UpdateTask, insertTaskSchema, updateTaskSchema } from "@shared/schema";
+import { InsertTask, UpdateTask, insertTaskSchema, updateTaskSchema, InsertNote, UpdateNote, insertNoteSchema, updateNoteSchema } from "@shared/schema";
 import { z } from "zod";
 import { log } from "./vite";
 
@@ -99,6 +99,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error toggling task completion:", error);
       return res.status(500).json({ message: "Nie udało się zmienić statusu zadania" });
+    }
+  });
+
+  // Notes API routes
+  app.get("/api/notes", async (req: Request, res: Response) => {
+    try {
+      const notes = await dataStorage.getNotes();
+      return res.json(notes);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+      return res.status(500).json({ message: "Nie udało się pobrać notatek" });
+    }
+  });
+
+  app.post("/api/notes", async (req: Request, res: Response) => {
+    try {
+      const noteData = insertNoteSchema.parse(req.body);
+      const note = await dataStorage.addNote(noteData);
+      return res.status(201).json(note);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Nieprawidłowe dane notatki", errors: error.format() });
+      }
+      console.error("Error creating note:", error);
+      return res.status(500).json({ message: "Nie udało się utworzyć notatki" });
+    }
+  });
+
+  app.patch("/api/notes/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const noteData = updateNoteSchema.parse(req.body);
+      const updatedNote = await dataStorage.updateNote(id, noteData);
+      
+      if (!updatedNote) {
+        return res.status(404).json({ message: "Notatka nie znaleziona" });
+      }
+      
+      return res.json(updatedNote);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Nieprawidłowe dane notatki", errors: error.format() });
+      }
+      console.error("Error updating note:", error);
+      return res.status(500).json({ message: "Nie udało się zaktualizować notatki" });
+    }
+  });
+
+  app.delete("/api/notes/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const success = await dataStorage.deleteNote(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Notatka nie znaleziona" });
+      }
+      
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      return res.status(500).json({ message: "Nie udało się usunąć notatki" });
     }
   });
 

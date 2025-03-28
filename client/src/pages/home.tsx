@@ -8,7 +8,8 @@ import TaskForm, { EditingTask } from '@/components/task-form';
 import TaskFilter from '@/components/task-filter';
 import MobileNavigation from '@/components/mobile-navigation';
 import MobileFilter from '@/components/mobile-filter';
-import { sortCategoriesByRomanNumeral } from '@/lib/utils';
+import { NotesSection } from '@/components/notes-section';
+import { sortCategoriesByRomanNumeral, generateId } from '@/lib/utils';
 
 export default function Home() {
   const { toast } = useToast();
@@ -30,7 +31,7 @@ export default function Home() {
   // Add task mutation
   const addTaskMutation = useMutation({
     mutationFn: (task: EditingTask) => 
-      apiRequest('POST', '/api/tasks', task),
+      apiRequest('/api/tasks', 'POST', task),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       setShowAddTaskModal(false);
@@ -51,7 +52,7 @@ export default function Home() {
   // Update task mutation
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<EditingTask> }) => 
-      apiRequest('PATCH', `/api/tasks/${id}`, data),
+      apiRequest(`/api/tasks/${id}`, 'PATCH', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       setEditingTask(null);
@@ -73,7 +74,7 @@ export default function Home() {
   // Delete task mutation
   const deleteTaskMutation = useMutation({
     mutationFn: (id: string) => 
-      apiRequest('DELETE', `/api/tasks/${id}`),
+      apiRequest(`/api/tasks/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       toast({
@@ -93,7 +94,7 @@ export default function Home() {
   // Toggle task completion mutation
   const toggleTaskMutation = useMutation({
     mutationFn: (id: string) => 
-      apiRequest('PATCH', `/api/tasks/${id}/toggle`),
+      apiRequest(`/api/tasks/${id}/toggle`, 'PATCH'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
     },
@@ -287,6 +288,10 @@ export default function Home() {
               </button>
             </div>
 
+            {/* Sekcja notatek */}
+            <NotesSection onCreateFromNote={handleCreateFromNote} />
+            
+            {/* Lista zadań */}
             <TaskList 
               groupedTasks={groupedTasks}
               isLoading={isLoading}

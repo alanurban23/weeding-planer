@@ -67,3 +67,28 @@ export interface Task {
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type UpdateTask = z.infer<typeof updateTaskSchema>;
+
+// Standalone notes schema
+export const notes = pgTable("notes", {
+  id: text("id").primaryKey(),
+  content: text("content").notNull(),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+});
+
+const baseNoteSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  createdAt: z.date().optional(),
+});
+
+export const insertNoteSchema = baseNoteSchema;
+export const updateNoteSchema = baseNoteSchema.partial();
+
+export interface Note {
+  id: string;
+  content: string;
+  createdAt: Date;
+}
+
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type UpdateNote = z.infer<typeof updateNoteSchema>;
