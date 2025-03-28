@@ -145,7 +145,7 @@ export default function Home() {
   // Create task from note
   const handleCreateFromNote = (note: string, category: string) => {
     const newTask: EditingTask = {
-      id: '',
+      id: generateId(),
       title: note,
       category: category,
       notes: [],
@@ -153,13 +153,10 @@ export default function Home() {
       dueDate: null,
     };
     
-    setEditingTask(null);
+    // Po kliknięciu w notatkę wewnątrz edycji zadania czy NotesSection, tworzymy z niej nowe zadanie
+    // i otwieramy formularz z wypełnionymi danymi
+    setEditingTask(newTask as unknown as Task);
     setShowAddTaskModal(true);
-    
-    // Use setTimeout to ensure the form is rendered and values are set correctly
-    setTimeout(() => {
-      handleSaveTask(newTask);
-    }, 100);
   };
 
   // Toggle task completion status
@@ -312,6 +309,7 @@ export default function Home() {
         onSave={handleSaveTask}
         task={editingTask}
         categories={categories}
+        onCreateFromNote={handleCreateFromNote}
       />
 
       {/* Mobile bottom navigation */}

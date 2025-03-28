@@ -30,6 +30,7 @@ interface TaskFormProps {
   onSave: (task: EditingTask) => void;
   task: Task | null;
   categories: string[];
+  onCreateFromNote?: (note: string, category: string) => void;
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -38,6 +39,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   onSave,
   task,
   categories,
+  onCreateFromNote,
 }) => {
   const [editingTask, setEditingTask] = useState<EditingTask>({
     id: '',
@@ -264,18 +266,36 @@ const TaskForm: React.FC<TaskFormProps> = ({
               {editingTask.notes.map((note, index) => (
                 <li 
                   key={index} 
-                  className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-md"
+                  className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-md group"
                 >
                   <span className="text-sm text-gray-700">{note}</span>
-                  <button 
-                    type="button"
-                    onClick={() => handleRemoveNote(index)}
-                    className="text-gray-400 hover:text-gray-500"
-                  >
-                    <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="flex space-x-2">
+                    {onCreateFromNote && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const category = isCustomCategory ? newCategory : editingTask.category;
+                          onCreateFromNote(note, category);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center"
+                        title="Przekształć na zadanie"
+                      >
+                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      </button>
+                    )}
+                    <button 
+                      type="button"
+                      onClick={() => handleRemoveNote(index)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
