@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Task, InsertTask, UpdateTask } from '@shared/schema';
+import { Task, InsertTask, UpdateTask, Note, InsertNote, UpdateNote } from '@shared/schema';
 
 // Pobieramy dane uwierzytelniające z zmiennych środowiskowych
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -13,8 +13,9 @@ if (!supabaseUrl || !supabaseKey) {
 // Tworzymy klienta Supabase
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Nazwa tabeli z zadaniami
+// Nazwy tabel
 const TASKS_TABLE = 'tasks';
+const NOTES_TABLE = 'notes';
 
 /**
  * Funkcja do konwersji daty z formatu Supabase do JavaScript Date

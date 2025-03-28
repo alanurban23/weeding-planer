@@ -1,5 +1,6 @@
 import { InsertTask, Task, UpdateTask, InsertNote, Note, UpdateNote } from '@shared/schema';
 import * as supabaseApi from './supabase';
+import * as supabaseNotesApi from './supabase-notes';
 import { IStorage } from './storage';
 
 // Implementacja klasy SupabaseStorage do interakcji z bazą danych Supabase
@@ -43,84 +44,39 @@ export class SupabaseStorage implements IStorage {
   
   // Implementacja metod do zarządzania notatkami
   async getNotes(): Promise<Note[]> {
-    // Implementacja pobierania notatek z Supabase
-    const { data, error } = await supabaseApi.supabase
-      .from('notes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
+    try {
+      return await supabaseNotesApi.fetchNotes();
+    } catch (error) {
       console.error('Błąd podczas pobierania notatek:', error);
       return [];
     }
-    
-    return data.map((note: any) => ({
-      id: note.id,
-      content: note.content,
-      createdAt: new Date(note.created_at),
-    }));
   }
   
   async addNote(note: InsertNote): Promise<Note> {
-    // Implementacja dodawania notatki do Supabase
-    const { data, error } = await supabaseApi.supabase
-      .from('notes')
-      .insert({
-        id: note.id,
-        content: note.content,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-    
-    if (error) {
+    try {
+      return await supabaseNotesApi.addNote(note);
+    } catch (error) {
       console.error('Błąd podczas dodawania notatki:', error);
       throw new Error('Nie udało się dodać notatki');
     }
-    
-    return {
-      id: data.id,
-      content: data.content,
-      createdAt: new Date(data.created_at),
-    };
   }
   
   async updateNote(id: string, updates: UpdateNote): Promise<Note | undefined> {
-    // Implementacja aktualizacji notatki w Supabase
-    const { data, error } = await supabaseApi.supabase
-      .from('notes')
-      .update({
-        content: updates.content,
-      })
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) {
+    try {
+      return await supabaseNotesApi.updateNote(id, updates);
+    } catch (error) {
       console.error('Błąd podczas aktualizacji notatki:', error);
       return undefined;
     }
-    
-    return {
-      id: data.id,
-      content: data.content,
-      createdAt: new Date(data.created_at),
-    };
   }
   
   async deleteNote(id: string): Promise<boolean> {
-    // Implementacja usuwania notatki z Supabase
-    const { error } = await supabaseApi.supabase
-      .from('notes')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
+    try {
+      return await supabaseNotesApi.deleteNote(id);
+    } catch (error) {
       console.error('Błąd podczas usuwania notatki:', error);
       return false;
     }
-    
-    return true;
   }
 }
 
