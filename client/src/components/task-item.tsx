@@ -37,6 +37,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return 'text-gray-600';
   };
 
+  // Determine badge variant based on task status
+  const getDateBadgeVariant = () => {
+    if (task.completed) return 'success';
+    if (isOverdue) return 'destructive';
+    if (task.dueDate && isDateToday(new Date(task.dueDate))) return 'warning';
+    return 'outline';
+  };
+
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
