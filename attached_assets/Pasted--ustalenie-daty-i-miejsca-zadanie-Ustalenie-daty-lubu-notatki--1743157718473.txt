@@ -1,0 +1,292 @@
+{
+  "ustalenie_daty_i_miejsca": [
+    {
+      "zadanie": "**Ustalenie daty ślubu**",
+      "notatki": "Data ślubu: **4 września 2026**."
+    },
+    {
+      "zadanie": "**Rezerwacja miejsca na ceremonię ślubną oraz wesele**",
+      "notatki": "Miejsce wesela: **Villa Presto, Brzóza Królewska sala nr 2**."
+    },
+    {
+      "zadanie": "Zaliczka za salę",
+      "notatki": "**3500 zł do 31 Marca 2025**."
+    },
+    {
+      "zadanie": "Kaucja za salę (50%)",
+      "notatki": "do **20 sierpnia 2026**."
+    },
+    {
+      "zadanie": "Pozostała część płatności za salę (50%)",
+      "notatki": "**4 dni po 8 września**."
+    }
+  ],
+  "budzet_i_goscie": [
+    {
+      "zadanie": "**Określenie budżetu**",
+      "notatki": "Koszt za talerzyk: **315 zł**."
+    },
+    {
+      "zadanie": "**Sporządzenie wstępnej listy gości**",
+      "notatki": "Planowana liczba gości: około **115 osób**. Dostępna jest również \"[Lista Gości](https://www.notion.so/Lista-Go-ci-1c1411b6e1a080c3aadaf6bf27d53ab5?pvs=21)\"."
+    },
+    {
+      "zadanie": "**Potwierdzenie obecności gości**",
+      "notatki": "Sprawdzić termin w umowie."
+    },
+    {
+      "zadanie": "**Zarezerwowanie pokoi hotelowych dla gości przyjezdnych**",
+      "notatki": "Dowiemy się przy potwierdzeniach, czy będą chcieli mieć pokój."
+    }
+  ],
+  "styl_i_charakter_uroczystosci": [
+    {
+      "zadanie": "**Wybór stylu i charakteru uroczystości**",
+      "notatki": "(tematyka, kolorystyka)."
+    }
+  ],
+  "uslugodawcy": [
+    {
+      "sekcja": "fotograf_i_kamerzysta",
+      "zadania": [
+        {
+          "zadanie": "**Wybór fotografa, kamerzysty**",
+          "notatki": "Wybrana firma: **Cozawesele**. Umowa podpisana. Koszt: **12300 zł po weselu** (Każda dodatkowa godzina to 500 złotych.). REZERWACJA JEST POTWIERDZONA - umowa znajduje się w załączniku. W terminie do 7 dni prosimy o przesłanie nam podpisanej umowy. Na około dwa tygodnie przed ślubem, skontaktujemy się już bezpośrednio z Wami w celu ustalenia dokładniejszych szczegółów realizacji oraz poznania dokładnego harmonogramu wesela oraz niezbędnych adresów i kontaktów do osób obsługujących Wasze wesele."
+        },
+        {
+          "zadanie": "**Ustalenie miejsca spotkania z fotografem i kamerzystą**",
+          "notatki": "Dzień przed ślubem."
+        },
+        {
+          "zadanie": "Zapłacenie opłat wymaganych w dniu ślubu",
+          "notatki": "Fotograf i kamerzysta."
+        }
+      ]
+    },
+    {
+      "sekcja": "zespol_muzyczny",
+      "zadania": [
+        {
+          "zadanie": "**Wybór zespołu muzycznego**",
+          "notatki": "Podpisana umowa: całość **10 000 zł w dniu wesela**, kaucja **1 000 zł** zapłacona. Tydzień przed, dać informacje, jakie zabawy weselne. Dać znać, żeby grali pod domem. Zastanowić się, dodatkowo prawa muzyczne w kościele. Moja przedszkolanka chce, żeby to była dziewczyna lub skrzypce. Zapytaj się, czy organista przyjdzie do pracy i ile."
+        },
+        {
+          "zadanie": "Zapłacenie opłat wymaganych w dniu ślubu",
+          "notatki": "Zespół weselny."
+        }
+      ]
+    },
+    {
+      "sekcja": "florysta",
+      "zadania": [
+        {
+          "zadanie": "**Wybór i rezerwacja florysty**",
+          "notatki": "Wybrana florystka, skontaktować się z nią, co dokładnie chcemy. Bukiet panny młodej."
+        }
+      ]
+    },
+    {
+      "sekcja": "barman",
+      "zadania": [
+        {
+          "zadanie": "barman",
+          "notatki": "Wysłać umowe, płatność w dzień wesela: **3350 (150 os)**. [Weddingcoctail.pl](http://Weddingcoctail.pl) Marcin."
+        },
+        {
+          "zadanie": "Zapłacenie opłat wymaganych w dniu ślubu",
+          "notatki": "Barman."
+        }
+      ]
+    }
+  ],
+  "formalnosci_koscielne": [
+    {
+      "zadanie": "**Zarezerwowanie terminu w kościele**",
+      "notatki": "Jutro."
+    },
+    {
+      "zadanie": "**Rozpoczęcie przygotowań do nauk przedmałżeńskich**",
+      "notatki": "(jeśli ślub kościelny)."
+    },
+    {
+      "zadanie": "**Ustalenie dokładnego planu ceremonii**",
+      "notatki": "Ustalenie z organistą i księdzem."
+    }
+  ],
+  "wybor_strojow_i_akcesoriow": [
+    {
+      "zadanie": "**Wybór sukni ślubnej**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Wybór garnituru**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Ostatnie przymiarki sukni ślubnej i stroju Pana Młodego**",
+      "notatki": null
+    },
+    {
+      "zadanie": "Bielizna Panny młodej, buty",
+      "notatki": "Kupić."
+    },
+    {
+      "zadanie": "Garnitury, krawaty",
+      "notatki": "Kupić dla 'ksawciu i natan'."
+    }
+  ],
+  "obraczki": [
+    {
+      "zadanie": "**Wyszukanie i zamówienie obrączek ślubnych**",
+      "notatki": "Materiał Pallad."
+    },
+    {
+      "zadanie": "**Odbiór obrączek**",
+      "notatki": "i ich ewentualne wygrawerowanie."
+    }
+  ],
+  "zaproszenia_i_papeteria": [
+    {
+      "zadanie": "zamówienie zaproszeń",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Wysłanie lub przekazanie zaproszeń**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Zamówienie reszty papeterii**",
+      "notatki": "(winietki, menu)."
+    }
+  ],
+  "atrakcje_weselne": [
+    {
+      "zadanie": "**Przemyślenie atrakcji weselnych**",
+      "notatki": null
+    },
+    {
+      "zadanie": "Kupić Instax",
+      "notatki": null
+    },
+    {
+      "zadanie": "Ogarnąć zimne ognie i fajerwerki",
+      "notatki": null
+    },
+    {
+      "zadanie": "Niania dla naszych dzieci",
+      "notatki": "Do zorganizowania."
+    },
+    {
+      "zadanie": "Animatorka?",
+      "notatki": "Zastanowić się."
+    },
+    {
+      "zadanie": "Prezenty dla gosci",
+      "notatki": "Zastanowić się (szyszki?)."
+    },
+    {
+      "zadanie": "Podziękowania dla rodziców",
+      "notatki": "Do przygotowania."
+    }
+  ],
+  "tort_i_menu": [
+    {
+      "zadanie": "**Zamówienie tortu weselnego**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Sfinalizowanie menu weselnego**",
+      "notatki": "z uwzględnieniem ograniczeń dietetycznych. Dwa tygodnie przed startem wesela."
+    }
+  ],
+  "fryzura_i_makijaz": [
+    {
+      "zadanie": "**Zarezerwowanie próbnej fryzury i makijażu**",
+      "notatki": "Czeka Na Paule kiedyś się umówić. Fryzura nie została wybrana."
+    },
+    {
+      "zadanie": "paznokcie",
+      "notatki": "Do zrobienia."
+    }
+  ],
+  "harmonogram_i_plan_dnia": [
+    {
+      "zadanie": "**Zatwierdzenie harmonogramu dnia ślubu**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Ustalenie planu wesela z obsługą sali**",
+      "notatki": "Ustalenie z szefem villi presto."
+    },
+    {
+      "zadanie": "**Ustalenie planu dnia poprawin**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Próba generalna**",
+      "notatki": "(jeśli planowana). Dzień przed ślubem."
+    }
+  ],
+  "pierwszy_taniec": [
+    {
+      "zadanie": "**Wybór piosenki na pierwszy taniec**",
+      "notatki": "i ewentualne ćwiczenia."
+    }
+  ],
+  "platnosci": [
+    {
+      "zadanie": "**Zapłacenie opłat wymaganych w dniu ślubu**",
+      "notatki": "i przygotowanie kopert dla fotografa i kamerzysty, zespół weselny, barman."
+    }
+  ],
+  "dzien_przed_slubem": [
+    {
+      "zadanie": "**Sprawdzenie, czy wszystkie stroje są gotowe**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Przygotowanie alkoholu i dekoracji na sali**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Przygotowanie kosmetyczki**",
+      "notatki": "z niezbędnymi rzeczami."
+    },
+    {
+      "zadanie": "Kupić alkochol",
+      "notatki": null
+    }
+  ],
+  "w_dniu_slubu": [
+    {
+      "zadanie": "**Śniadanie**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Relaks – nie stresujcie się drobnymi szczegółami**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Makijaż i fryzura**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Ubieranie się**",
+      "notatki": null
+    },
+    {
+      "zadanie": "**Zebranie wszystkich ważnych rzeczy**",
+      "notatki": "(obrączki, dokumenty, telefon)."
+    },
+    {
+      "zadanie": "**Cieszenie się każdym momentem tego wyjątkowego dnia!**",
+      "notatki": null
+    }
+  ],
+  "swiadkowie": [
+    {
+      "zadanie": "**Rozpoczęcie poszukiwań świadków**",
+      "notatki": "Świadek znaleziony: 1. Szymek od strony Pana Młodego, 2. Karolina od Panny Młodej. Zanieś prezenty i zapytaj się, czy będą chcieli być świadkami."
+    }
+  ]
+}
