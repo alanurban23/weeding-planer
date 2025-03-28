@@ -1,14 +1,20 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { supabaseStorage } from "./supabase-storage";
 import { InsertTask, UpdateTask, insertTaskSchema, updateTaskSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Wybierz implementację przechowywania danych
+// Możemy przełączać się między pamięcią lokalną (storage) a Supabase (supabaseStorage)
+// Tymczasowo używamy lokalnego przechowywania, ponieważ występują problemy z połączeniem do Supabase
+const dataStorage = storage;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Tasks API routes
   app.get("/api/tasks", async (req: Request, res: Response) => {
     try {
-      const tasks = await storage.getTasks();
+      const tasks = await dataStorage.getTasks();
       return res.json(tasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -19,7 +25,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks", async (req: Request, res: Response) => {
     try {
       const taskData = insertTaskSchema.parse(req.body);
-      const task = await storage.addTask(taskData);
+      const task = await dataStorage.addTask(taskData);
       return res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -34,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const taskData = updateTaskSchema.parse(req.body);
-      const updatedTask = await storage.updateTask(id, taskData);
+      const updatedTask = await dataStorage.updateTask(id, taskData);
       
       if (!updatedTask) {
         return res.status(404).json({ message: "Zadanie nie znalezione" });
@@ -53,7 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/tasks/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const success = await storage.deleteTask(id);
+      const success = await dataStorage.deleteTask(id);
       
       if (!success) {
         return res.status(404).json({ message: "Zadanie nie znalezione" });
@@ -69,7 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/tasks/:id/toggle", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const updatedTask = await storage.completeTask(id);
+      const updatedTask = await dataStorage.completeTask(id);
       
       if (!updatedTask) {
         return res.status(404).json({ message: "Zadanie nie znalezione" });
