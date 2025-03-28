@@ -83,9 +83,17 @@ export class MemStorage implements IStorage {
     const task = this.tasks.get(id);
     if (!task) return undefined;
     
+    // Przetwarzanie daty - zapewniamy, że dueDate będzie obiektem Date, jeśli istnieje
+    const processedUpdates = { ...updates };
+    if (processedUpdates.dueDate) {
+      if (typeof processedUpdates.dueDate === 'string') {
+        processedUpdates.dueDate = new Date(processedUpdates.dueDate);
+      }
+    }
+    
     const updatedTask: Task = {
       ...task,
-      ...updates,
+      ...processedUpdates,
     };
     
     this.tasks.set(id, updatedTask);

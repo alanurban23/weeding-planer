@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
 import { Task } from '@shared/schema';
 import TaskList from '@/components/task-list';
-import TaskForm from '@/components/task-form';
+import TaskForm, { EditingTask } from '@/components/task-form';
 import TaskFilter from '@/components/task-filter';
 import MobileNavigation from '@/components/mobile-navigation';
 import MobileFilter from '@/components/mobile-filter';
@@ -29,7 +29,7 @@ export default function Home() {
 
   // Add task mutation
   const addTaskMutation = useMutation({
-    mutationFn: (task: Omit<Task, 'createdAt'>) => 
+    mutationFn: (task: EditingTask) => 
       apiRequest('POST', '/api/tasks', task),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -50,7 +50,7 @@ export default function Home() {
 
   // Update task mutation
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Task> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<EditingTask> }) => 
       apiRequest('PATCH', `/api/tasks/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -133,7 +133,7 @@ export default function Home() {
   };
 
   // Save task (add or update)
-  const handleSaveTask = (task: Omit<Task, 'createdAt'>) => {
+  const handleSaveTask = (task: EditingTask) => {
     if (editingTask) {
       updateTaskMutation.mutate({ id: task.id, data: task });
     } else {

@@ -14,10 +14,20 @@ import {
 } from '@/components/ui/select';
 import { formatDateForInput } from '@/lib/date-utils';
 
+// Definiujemy typ dla zadania wewnątrz formularza (bez createdAt)
+export type EditingTask = {
+  id: string;
+  title: string;
+  category: string;
+  notes: string[];
+  completed: boolean;
+  dueDate: string | Date | null;
+};
+
 interface TaskFormProps {
   show: boolean;
   onClose: () => void;
-  onSave: (task: Omit<Task, 'createdAt'>) => void;
+  onSave: (task: EditingTask) => void;
   task: Task | null;
   categories: string[];
 }
@@ -29,12 +39,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
   task,
   categories,
 }) => {
-  const [editingTask, setEditingTask] = useState<Omit<Task, 'createdAt'>>({
+  const [editingTask, setEditingTask] = useState<EditingTask>({
     id: '',
     title: '',
     category: '',
     notes: [],
     completed: false,
+    dueDate: null
   });
   
   const [currentNote, setCurrentNote] = useState('');
@@ -51,7 +62,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         category: task.category,
         notes: [...task.notes],
         completed: task.completed,
-        dueDate: task.dueDate ? new Date(task.dueDate) : undefined,
+        dueDate: task.dueDate 
       });
       setIsCustomCategory(false);
     } else {
@@ -61,6 +72,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         category: categories.length > 0 ? categories[0] : '',
         notes: [],
         completed: false,
+        dueDate: null
       });
     }
     setCurrentNote('');
@@ -194,7 +206,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
               value={editingTask.dueDate ? formatDateForInput(new Date(editingTask.dueDate)) : ''}
               onChange={(e) => setEditingTask(prev => ({ 
                 ...prev, 
-                dueDate: e.target.value ? new Date(e.target.value) : undefined 
+                dueDate: e.target.value || null
               }))}
             />
           </div>

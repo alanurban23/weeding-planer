@@ -28,12 +28,42 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  createdAt: true,
+// Niestandardowy schemat zadania uwzględniający datę
+const dateSchema = z.union([
+  z.date(),
+  z.string().transform((val) => {
+    try {
+      return new Date(val);
+    } catch {
+      throw new Error('Nieprawidłowy format daty');
+    }
+  }),
+  z.null(),
+]);
+
+const baseTaskSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  notes: z.array(z.string()),
+  completed: z.boolean(),
+  category: z.string(),
+  dueDate: dateSchema.optional(),
+  createdAt: z.date().optional(),
 });
 
-export const updateTaskSchema = insertTaskSchema.partial();
+export const insertTaskSchema = baseTaskSchema;
+export const updateTaskSchema = baseTaskSchema.partial();
 
-export type Task = typeof tasks.$inferSelect;
+// Typ Task reprezentujący zadanie
+export interface Task {
+  id: string;
+  title: string;
+  notes: string[];
+  completed: boolean;
+  category: string;
+  dueDate: Date | string | null;
+  createdAt: Date;
+}
+
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type UpdateTask = z.infer<typeof updateTaskSchema>;
