@@ -5,11 +5,39 @@ import * as schema from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+// Inicjalizacja bazy danych tylko gdy jest wywoływana
+let pool: Pool | null = null;
+let db: any = null;
+
+export function initializeDatabase() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      "DATABASE_URL must be set. Did you forget to provision a database?",
+    );
+  }
+
+  if (!pool) {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    db = drizzle({ client: pool, schema });
+  }
+  
+  return { pool, db };
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+// Eksportujemy gettery, które inicjalizują połączenie przy pierwszym użyciu
+export const getPool = () => {
+  if (!pool) {
+    initializeDatabase();
+  }
+  return pool;
+};
+
+export const getDb = () => {
+  if (!db) {
+    initializeDatabase();
+  }
+  return db;
+};
+
+// Dla kompatybilności z istniejącym kodem
+export { pool, db };

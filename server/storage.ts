@@ -1,5 +1,5 @@
 import { Task, InsertTask, UpdateTask, tasks, Note, InsertNote, UpdateNote, notes } from "@shared/schema";
-import { db } from "./db";
+import { getDb } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { supabaseStorage } from './supabase-storage';
 
@@ -703,10 +703,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTasks(): Promise<Task[]> {
+    const db = getDb();
     const dbTasks = await db.select().from(tasks).orderBy(desc(tasks.created_at));
     
     // Konwersja z snake_case na camelCase
-    return dbTasks.map(dbTask => ({
+    return dbTasks.map((dbTask: any) => ({
       id: dbTask.id,
       title: dbTask.title,
       notes: dbTask.notes,
@@ -729,6 +730,7 @@ export class DatabaseStorage implements IStorage {
       created_at: new Date()
     };
     
+    const db = getDb();
     const [insertedTask] = await db.insert(tasks).values(dbTask).returning();
     
     // Konwersja z powrotem na camelCase
@@ -745,6 +747,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateTask(id: string, updates: UpdateTask): Promise<Task | undefined> {
     // Sprawdź czy zadanie istnieje
+    const db = getDb();
     const [existingTask] = await db.select().from(tasks).where(eq(tasks.id, id));
     if (!existingTask) {
       return undefined;
@@ -777,12 +780,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTask(id: string): Promise<boolean> {
+    const db = getDb();
     const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
     return result.length > 0;
   }
 
   async completeTask(id: string): Promise<Task | undefined> {
     // Znajdź zadanie
+    const db = getDb();
     const [existingTask] = await db.select().from(tasks).where(eq(tasks.id, id));
     if (!existingTask) {
       return undefined;
@@ -809,10 +814,11 @@ export class DatabaseStorage implements IStorage {
   
   // Note methods
   async getNotes(): Promise<Note[]> {
+    const db = getDb();
     const notesList = await db.select().from(notes).orderBy(desc(notes.created_at));
     
     // Konwersja z snake_case na camelCase
-    return notesList.map(note => ({
+    return notesList.map((note: any) => ({
       id: note.id,
       content: note.content,
       createdAt: note.created_at,
@@ -821,6 +827,7 @@ export class DatabaseStorage implements IStorage {
 
   async addNote(note: InsertNote): Promise<Note> {
     // Konwersja z camelCase na snake_case
+    const db = getDb();
     const [insertedNote] = await db
       .insert(notes)
       .values({
@@ -840,6 +847,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateNote(id: string, updates: UpdateNote): Promise<Note | undefined> {
     // Sprawdź czy notatka istnieje
+    const db = getDb();
     const [existingNote] = await db.select().from(notes).where(eq(notes.id, id));
     if (!existingNote) {
       return undefined;
@@ -863,6 +871,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteNote(id: string): Promise<boolean> {
+    const db = getDb();
     const result = await db.delete(notes).where(eq(notes.id, id)).returning();
     return result.length > 0;
   }
