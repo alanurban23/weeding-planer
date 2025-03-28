@@ -59,7 +59,7 @@ app.use((req, res, next) => {
 
   // Only start the server when running locally, not on Vercel
   if (process.env.VERCEL !== "1") {
-    const port = process.env.PORT || 5001;
+    const port = process.env.PORT || 5002;
     server.listen({
       port,
       host: "0.0.0.0",

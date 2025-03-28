@@ -1,5 +1,6 @@
 // This file is used as the entry point for Vercel's serverless functions
 import express from 'express';
+import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -38,13 +39,28 @@ app.get('/api/status', (req, res) => {
 });
 
 // API route for tasks
-app.get('/api/tasks', (req, res) => {
+app.get('/api/tasks', async (req, res) => {
   try {
-    // Return empty array if no tasks are found
-    res.json([]);
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_API_KEY);
+    
+    // Check if tasks table exists
+    const { data: tasks, error } = await supabase
+      .from('tasks')
+      .select('*');
+
+    if (error?.code === '42P01') {
+      // Table doesn't exist
+      return res.status(200).json([]);
+    }
+    if (error) throw error;
+    
+    res.json(tasks || []);
   } catch (error) {
     console.error('Error fetching tasks:', error);
-    res.status(500).json({ error: 'Failed to fetch tasks' });
+    res.status(500).json({ 
+      error: 'Failed to fetch tasks',
+      message: error.message 
+    });
   }
 });
 
