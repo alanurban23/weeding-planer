@@ -53,15 +53,19 @@ const TaskItem: React.FC<TaskItemProps> = ({
     <li className="bg-white shadow overflow-hidden rounded-md mb-3">
       <div 
         className={cn(
-          'border-l-4 px-4 py-4 sm:px-6',
+          'border-l-4 px-4 py-4 sm:px-6 cursor-pointer',
           getBorderColor()
         )}
+        onClick={toggleExpand}
       >
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 min-w-0 flex-1">
             <div className="flex-shrink-0 pt-1">
               <button 
-                onClick={() => onToggleCompletion(task.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCompletion(task.id);
+                }}
                 className={cn(
                   'h-5 w-5 transition-colors duration-150',
                   task.completed ? 'text-green-500' : 'text-gray-300 hover:text-primary'
@@ -86,14 +90,14 @@ const TaskItem: React.FC<TaskItemProps> = ({
                   </Badge>
                   
                   {task.dueDate && (
-                    <span className={cn('text-xs px-2 py-1 rounded-full border', getDateColor())}>
+                    <Badge variant={getDateBadgeVariant()} className="font-normal text-xs">
                       {formatDate(new Date(task.dueDate))}
-                    </span>
+                    </Badge>
                   )}
                 </div>
               </div>
               
-              {/* Always show first note if exists */}
+              {/* Always show notes if expanded, or first note if not expanded */}
               {task.notes && task.notes.length > 0 && (
                 <div className="mt-2">
                   <div 
@@ -120,7 +124,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
                       {/* Only show expand/collapse button if there are multiple notes */}
                       {task.notes.length > 1 && (
                         <button 
-                          onClick={toggleExpand}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpand();
+                          }}
                           className="ml-1 text-gray-400 hover:text-gray-600 flex items-center"
                         >
                           {isExpanded ? (
@@ -144,33 +151,39 @@ const TaskItem: React.FC<TaskItemProps> = ({
               {/* Status and date information */}
               <div className="mt-2 flex flex-wrap text-xs text-gray-500 gap-2">
                 {task.completed && (
-                  <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full">
-                    Wykonano
-                  </span>
+                  <Badge variant="success" className="font-normal text-xs">
+                    Wykonano {formatDate(new Date(task.createdAt))}
+                  </Badge>
                 )}
                 {isOverdue && !task.completed && (
-                  <span className="bg-red-50 text-red-700 px-2 py-1 rounded-full">
+                  <Badge variant="destructive" className="font-normal text-xs">
                     Po terminie
-                  </span>
+                  </Badge>
                 )}
                 {task.dueDate && isDateToday(new Date(task.dueDate)) && !task.completed && (
-                  <span className="bg-yellow-50 text-yellow-700 px-2 py-1 rounded-full">
+                  <Badge variant="warning" className="font-normal text-xs">
                     Dzisiaj
-                  </span>
+                  </Badge>
                 )}
               </div>
             </div>
           </div>
           <div className="ml-4 flex-shrink-0 flex space-x-2">
             <button 
-              onClick={() => onEdit(task)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(task);
+              }}
               className="text-gray-400 hover:text-gray-500"
               aria-label="Edytuj zadanie"
             >
               <Edit className="h-5 w-5" />
             </button>
             <button 
-              onClick={() => onDelete(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(task.id);
+              }}
               className="text-gray-400 hover:text-red-500"
               aria-label="Usuń zadanie"
             >
