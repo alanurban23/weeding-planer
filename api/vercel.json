@@ -2,7 +2,12 @@
   "functions": {
     "index.js": {
       "memory": 1024,
-      "maxDuration": 10
+      "maxDuration": 10,
+      "includeFiles": "../dist/**"
     }
+  },
+  "env": {
+    "VERCEL": "1",
+    "NODE_ENV": "production"
   }
 }
