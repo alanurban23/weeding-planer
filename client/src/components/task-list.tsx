@@ -11,6 +11,7 @@ interface TaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: () => void;
+  onCreateFromNote?: (note: string, category: string) => void;
 }
 
 const TaskList: React.FC<TaskListProps> = ({
@@ -20,6 +21,7 @@ const TaskList: React.FC<TaskListProps> = ({
   onEditTask,
   onDeleteTask,
   onAddTask,
+  onCreateFromNote,
 }) => {
   // If loading, show skeleton loader
   if (isLoading) {
@@ -84,6 +86,7 @@ const TaskList: React.FC<TaskListProps> = ({
                   onToggleCompletion={onToggleTaskCompletion}
                   onEdit={onEditTask}
                   onDelete={onDeleteTask}
+                  onCreateFromNote={onCreateFromNote}
                 />
               ))}
             </ul>

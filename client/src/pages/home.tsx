@@ -140,6 +140,26 @@ export default function Home() {
       addTaskMutation.mutate(task);
     }
   };
+  
+  // Create task from note
+  const handleCreateFromNote = (note: string, category: string) => {
+    const newTask: EditingTask = {
+      id: '',
+      title: note,
+      category: category,
+      notes: [],
+      completed: false,
+      dueDate: null,
+    };
+    
+    setEditingTask(null);
+    setShowAddTaskModal(true);
+    
+    // Use setTimeout to ensure the form is rendered and values are set correctly
+    setTimeout(() => {
+      handleSaveTask(newTask);
+    }, 100);
+  };
 
   // Toggle task completion status
   const handleToggleTaskCompletion = (id: string) => {
@@ -274,6 +294,7 @@ export default function Home() {
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               onAddTask={handleAddTask}
+              onCreateFromNote={handleCreateFromNote}
             />
           </div>
         </div>

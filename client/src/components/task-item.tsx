@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task } from '@shared/schema';
-import { Edit, Trash2, CheckCircle, ChevronDown, ChevronUp } from './icons';
+import { Edit, Trash2, CheckCircle, ChevronDown, ChevronUp, Plus } from './icons';
 import { cn } from '@/lib/utils';
 import { formatDate, isDateOverdue, isDateToday } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ interface TaskItemProps {
   onToggleCompletion: (id: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onCreateFromNote?: (note: string, category: string) => void;
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({
@@ -17,6 +18,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onToggleCompletion,
   onEdit,
   onDelete,
+  onCreateFromNote,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
@@ -39,9 +41,9 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
   // Determine badge variant based on task status
   const getDateBadgeVariant = () => {
-    if (task.completed) return 'success';
+    if (task.completed) return 'default';
     if (isOverdue) return 'destructive';
-    if (task.dueDate && isDateToday(new Date(task.dueDate))) return 'warning';
+    if (task.dueDate && isDateToday(new Date(task.dueDate))) return 'secondary';
     return 'outline';
   };
 
@@ -110,14 +112,46 @@ const TaskItem: React.FC<TaskItemProps> = ({
                       <span className="mr-2 flex-grow">
                         {isExpanded ? (
                           // Show all notes when expanded
-                          <ul className="space-y-1 list-disc pl-5">
+                          <ul className="space-y-2 list-disc pl-5">
                             {task.notes.map((note, index) => (
-                              <li key={index} className="text-sm">{note}</li>
+                              <li key={index} className="text-sm">
+                                <div className="flex items-start justify-between group">
+                                  <span className="flex-grow">{note}</span>
+                                  {onCreateFromNote && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onCreateFromNote(note, task.category);
+                                      }}
+                                      className="ml-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center"
+                                      title="Przekształć na zadanie"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      <span className="text-xs ml-1">Przekształć na zadanie</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </li>
                             ))}
                           </ul>
                         ) : (
                           // Show only first note when collapsed
-                          <span>{task.notes[0]}</span>
+                          <div className="flex items-start justify-between group">
+                            <span className="flex-grow">{task.notes[0]}</span>
+                            {onCreateFromNote && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onCreateFromNote(task.notes[0], task.category);
+                                }}
+                                className="ml-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center"
+                                title="Przekształć na zadanie"
+                              >
+                                <Plus className="h-4 w-4" />
+                                <span className="text-xs ml-1">Przekształć na zadanie</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </span>
                       
@@ -151,7 +185,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               {/* Status and date information */}
               <div className="mt-2 flex flex-wrap text-xs text-gray-500 gap-2">
                 {task.completed && (
-                  <Badge variant="success" className="font-normal text-xs">
+                  <Badge variant="default" className="font-normal text-xs">
                     Wykonano {formatDate(new Date(task.createdAt))}
                   </Badge>
                 )}
@@ -161,7 +195,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                   </Badge>
                 )}
                 {task.dueDate && isDateToday(new Date(task.dueDate)) && !task.completed && (
-                  <Badge variant="warning" className="font-normal text-xs">
+                  <Badge variant="secondary" className="font-normal text-xs">
                     Dzisiaj
                   </Badge>
                 )}
