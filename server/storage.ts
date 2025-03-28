@@ -1,4 +1,7 @@
-import { Task, InsertTask, UpdateTask } from "@shared/schema";
+import { Task, InsertTask, UpdateTask, tasks } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
+import { supabaseStorage } from './supabase-storage';
 
 export interface IStorage {
   getUser(id: number): Promise<any | undefined>;
@@ -640,11 +643,133 @@ export class MemStorage implements IStorage {
   }
 }
 
-// Importuj implementację Supabase storage
-import { supabaseStorage } from './supabase-storage';
+// Implementacja oparta na lokalnej bazie danych PostgreSQL przy użyciu Drizzle ORM
+export class DatabaseStorage implements IStorage {
+  constructor() {}
+  
+  async getUser(id: number): Promise<any | undefined> {
+    // Implementacja zostanie dodana później, gdy będziemy potrzebować autentykacji
+    return undefined;
+  }
 
-// Używaj pamięci (dla celów deweloperskich)
-export const storage = new MemStorage();
+  async getUserByUsername(username: string): Promise<any | undefined> {
+    // Implementacja zostanie dodana później, gdy będziemy potrzebować autentykacji
+    return undefined;
+  }
 
-// Gdy tabela tasks zostanie utworzona w Supabase, możemy użyć tego:
-// export const storage = supabaseStorage;
+  async createUser(insertUser: any): Promise<any> {
+    // Implementacja zostanie dodana później, gdy będziemy potrzebować autentykacji
+    return { id: 1, ...insertUser };
+  }
+
+  async getTasks(): Promise<Task[]> {
+    const dbTasks = await db.select().from(tasks).orderBy(desc(tasks.created_at));
+    
+    // Konwersja z snake_case na camelCase
+    return dbTasks.map(dbTask => ({
+      id: dbTask.id,
+      title: dbTask.title,
+      notes: dbTask.notes,
+      completed: dbTask.completed,
+      category: dbTask.category,
+      dueDate: dbTask.due_date,
+      createdAt: dbTask.created_at
+    }));
+  }
+
+  async addTask(task: InsertTask): Promise<Task> {
+    // Konwersja z camelCase na snake_case
+    const dbTask = {
+      id: task.id || Date.now().toString(),
+      title: task.title,
+      notes: task.notes || [],
+      completed: task.completed || false,
+      category: task.category,
+      due_date: task.dueDate || null,
+      created_at: new Date()
+    };
+    
+    const [insertedTask] = await db.insert(tasks).values(dbTask).returning();
+    
+    // Konwersja z powrotem na camelCase
+    return {
+      id: insertedTask.id,
+      title: insertedTask.title,
+      notes: insertedTask.notes,
+      completed: insertedTask.completed,
+      category: insertedTask.category,
+      dueDate: insertedTask.due_date,
+      createdAt: insertedTask.created_at
+    };
+  }
+
+  async updateTask(id: string, updates: UpdateTask): Promise<Task | undefined> {
+    // Sprawdź czy zadanie istnieje
+    const [existingTask] = await db.select().from(tasks).where(eq(tasks.id, id));
+    if (!existingTask) {
+      return undefined;
+    }
+
+    // Konwersja z camelCase na snake_case
+    const dbUpdates: any = {};
+    if (updates.title !== undefined) dbUpdates.title = updates.title;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.completed !== undefined) dbUpdates.completed = updates.completed;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate;
+    
+    const [updatedTask] = await db
+      .update(tasks)
+      .set(dbUpdates)
+      .where(eq(tasks.id, id))
+      .returning();
+    
+    // Konwersja z powrotem na camelCase
+    return {
+      id: updatedTask.id,
+      title: updatedTask.title,
+      notes: updatedTask.notes,
+      completed: updatedTask.completed,
+      category: updatedTask.category,
+      dueDate: updatedTask.due_date,
+      createdAt: updatedTask.created_at
+    };
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await db.delete(tasks).where(eq(tasks.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async completeTask(id: string): Promise<Task | undefined> {
+    // Znajdź zadanie
+    const [existingTask] = await db.select().from(tasks).where(eq(tasks.id, id));
+    if (!existingTask) {
+      return undefined;
+    }
+
+    // Przełącz status
+    const [updatedTask] = await db
+      .update(tasks)
+      .set({ completed: !existingTask.completed })
+      .where(eq(tasks.id, id))
+      .returning();
+    
+    // Konwersja na camelCase
+    return {
+      id: updatedTask.id,
+      title: updatedTask.title,
+      notes: updatedTask.notes,
+      completed: updatedTask.completed,
+      category: updatedTask.category,
+      dueDate: updatedTask.due_date,
+      createdAt: updatedTask.created_at
+    };
+  }
+}
+
+// Używamy implementacji PostgreSQL przez Drizzle jako głównego źródła danych
+export const storage = new DatabaseStorage();
+
+// Alternatywne implementacje (dla celów deweloperskich)
+// export const memStorage = new MemStorage();

@@ -3,43 +3,112 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import * as schema from "./shared/schema";
 
-// Sprawdzamy, czy zmienne środowiskowe są ustawione
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_API_KEY;
+// Sprawdzamy, czy zmienna środowiskowa jest ustawiona
+const databaseUrl = process.env.DATABASE_URL;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Brak wymaganych zmiennych środowiskowych SUPABASE_URL i SUPABASE_API_KEY');
+if (!databaseUrl) {
+  throw new Error('Brak wymaganej zmiennej środowiskowej DATABASE_URL');
 }
 
-// Ekstrahujemy informacje o hoście, porcie i nazwie bazy danych z URL
-const url = new URL(supabaseUrl);
-const host = url.hostname;
-const database = url.pathname.substring(1); // Usuwamy ukośnik
-const password = supabaseKey;
-const user = 'postgres';
-const port = 5432;
-
-// Tworzymy URL połączenia w formacie postgres://user:password@host:port/database
-const connectionString = `postgres://${user}:${password}@${host}:${port}/${database}`;
-
-console.log('Łączenie z bazą danych Supabase...');
+console.log('Łączenie z bazą danych PostgreSQL...');
 
 async function performMigration() {
   try {
     // Tworzymy klienta połączenia
-    const sql = postgres(connectionString, { max: 1 });
+    const sql = postgres(databaseUrl as string, { max: 1 });
     const db = drizzle(sql, { schema });
 
-    console.log('Wykonywanie migracji...');
-    await db.insert(schema.tasks).values({
-      id: "test-drizzle",
-      title: "Test z Drizzle",
-      notes: ["Testowa notatka"],
-      completed: false,
-      category: "Test",
-      dueDate: new Date(),
-      createdAt: new Date()
-    }).execute();
+    console.log('Generowanie i wykonywanie migracji...');
+    await migrate(db, { migrationsFolder: './migrations' });
+    
+    console.log('Dodawanie przykładowych danych...');
+    
+    // Dodajemy przykładowe zadania z użyciem nazw pól zgodnych ze schematem drizzle (snake_case)
+    const sampleTasks = [
+      {
+        id: '1',
+        title: 'Wybór sali weselnej',
+        notes: ['Villa Presto - kontakt: 123-456-789', 'Termin: 4 września 2026', 'Maksymalna liczba gości: 120'],
+        completed: true,
+        category: 'I. Ustalenia Ogólne',
+        due_date: new Date('2025-04-10'),
+        created_at: new Date()
+      },
+      {
+        id: '2',
+        title: 'Wybór fotografa',
+        notes: ['Studio Foto Magic - Anna Kowalska', 'Cena: 5000 zł - całodniowa sesja'],
+        completed: false,
+        category: 'II. Usługodawcy',
+        due_date: new Date('2025-05-15'),
+        created_at: new Date()
+      },
+      {
+        id: '3',
+        title: 'Zamówienie tortu weselnego',
+        notes: ['Cukiernia "Słodki Sen"', 'Trzy piętra, smak: wanilia i czekolada', 'Dekoracja: żywe kwiaty'],
+        completed: false,
+        category: 'III. Catering',
+        due_date: new Date('2026-08-05'),
+        created_at: new Date()
+      },
+      {
+        id: '4',
+        title: 'Przygotowanie listy gości',
+        notes: ['Maksymalna liczba: 120 osób', 'Termin wysyłki zaproszeń: 6 miesięcy przed ślubem'],
+        completed: false,
+        category: 'I. Ustalenia Ogólne',
+        due_date: null,
+        created_at: new Date()
+      },
+      {
+        id: '5',
+        title: 'Wybór zespołu muzycznego',
+        notes: ['Zespół "Weselne Dźwięki" - 5 osób', 'Repertuar: pop, rock, utwory biesiadne', 'Cena: 6000 zł'],
+        completed: false,
+        category: 'II. Usługodawcy',
+        due_date: new Date('2025-06-20'),
+        created_at: new Date()
+      },
+      {
+        id: '6',
+        title: 'Zakup obrączek',
+        notes: ['Jubiler "Złota Obrączka"', 'Złoto 585, wzór klasyczny'],
+        completed: false,
+        category: 'IV. Dekoracje i dodatki',
+        due_date: new Date('2026-07-15'),
+        created_at: new Date()
+      },
+      {
+        id: '7',
+        title: 'Ustalenie menu weselnego',
+        notes: ['Danie główne: kaczka z jabłkami', 'Przystawki: 5 rodzajów', 'Deser: lody z owocami', 'Bufet słodki: 10 rodzajów ciast'],
+        completed: false,
+        category: 'III. Catering',
+        due_date: new Date('2026-06-01'),
+        created_at: new Date()
+      },
+      {
+        id: '8',
+        title: 'Zamówienie barmanów na wesele',
+        notes: ['Firma: Cocktail Masters', 'Liczba barmanów: 2', 'Open bar: drinki, koktajle, prosecco'],
+        completed: false,
+        category: 'II. Usługodawcy',
+        due_date: new Date('2026-05-10'),
+        created_at: new Date()
+      }
+    ];
+
+    try {
+      // Dodajemy każde zadanie osobno
+      for (const task of sampleTasks) {
+        await db.insert(schema.tasks).values(task).execute();
+        console.log(`Dodano przykładowe zadanie: ${task.title}`);
+      }
+    } catch (insertError) {
+      console.error('Błąd podczas dodawania przykładowych zadań:', insertError);
+      console.log('Prawdopodobnie dane już istnieją, kontynuuję...');
+    }
     
     console.log('Migracja zakończona sukcesem!');
   } catch (error) {
