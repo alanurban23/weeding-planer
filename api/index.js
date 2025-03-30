@@ -64,27 +64,31 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
-// Import required modules for notes API
-import { fetchNotes } from '../server/supabase-notes';
-import { supabase } from '../server/supabase';
+// Create Supabase client directly
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_API_KEY);
 
-// API route for notes
+// Public API route for notes (no authentication required)
 app.get('/api/notes', async (req, res) => {
   try {
-    // Initialize Supabase connection
-    if (!supabase) {
-      throw new Error('Supabase client not initialized');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY // Use the anon key instead of service role
+    );
+
+    const { data: notes, error } = await supabase
+      .from('notes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Database error' });
     }
 
-    // Fetch notes from Supabase
-    const notes = await fetchNotes();
-    res.json(notes);
+    res.json(notes || []);
   } catch (error) {
-    console.error('Error fetching notes:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch notes',
-      message: error.message 
-    });
+    console.error('Server error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

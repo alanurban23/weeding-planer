@@ -1,4 +1,5 @@
 console.log('🚀 Starting Supabase connection test...');
+console.log('Using Supabase URL:', process.env.SUPABASE_URL);
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;

@@ -1,13 +1,12 @@
 {
-  "functions": {
-    "index.js": {
-      "memory": 1024,
-      "maxDuration": 10,
-      "includeFiles": "../dist/**"
+  "routes": [
+    {
+      "src": "/notes",
+      "dest": "public-notes.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS"
+      }
     }
-  },
-  "env": {
-    "VERCEL": "1",
-    "NODE_ENV": "production"
-  }
+  ]
 }
