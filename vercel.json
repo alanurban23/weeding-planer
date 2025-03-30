@@ -4,93 +4,19 @@
   "outputDirectory": "dist/public",
   "framework": "vite",
   "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
-{
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
-  "framework": "vite",
-  "routes": [
     {
       "src": "/api/notes",
       "dest": "api/public-notes.js",
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
-    }
-  ]
-}
+    },
+    {
+      "src": "/api/tasks",
+      "dest": "api/tasks.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
     }
   ]
 }
