@@ -3,7 +3,6 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
-import fs from 'fs';
 
 // Wczytaj zmienne środowiskowe
 dotenv.config();
@@ -29,60 +28,31 @@ const importHandler = async (path) => {
   }
 };
 
-// Obsługa funkcji serverless
-app.all('/api/tasks', async (req, res) => {
-  try {
-    const tasksHandler = await importHandler('./api/tasks.js');
-    tasksHandler(req, res);
-  } catch (error) {
-    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
-  }
-});
+// Funkcja pomocnicza do tworzenia routerów API
+const createApiRouter = (basePath, handlerPath) => {
+  app.all(`${basePath}`, async (req, res) => {
+    try {
+      const handler = await importHandler(handlerPath);
+      handler(req, res);
+    } catch (error) {
+      res.status(500).json({ error: `Błąd serwera: ${error.message}` });
+    }
+  });
 
-app.all('/api/tasks/*', async (req, res) => {
-  try {
-    const tasksHandler = await importHandler('./api/tasks.js');
-    tasksHandler(req, res);
-  } catch (error) {
-    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
-  }
-});
+  app.all(`${basePath}/*`, async (req, res) => {
+    try {
+      const handler = await importHandler(handlerPath);
+      handler(req, res);
+    } catch (error) {
+      res.status(500).json({ error: `Błąd serwera: ${error.message}` });
+    }
+  });
+};
 
-app.all('/api/notes', async (req, res) => {
-  try {
-    const notesHandler = await importHandler('./api/notes.js');
-    notesHandler(req, res);
-  } catch (error) {
-    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
-  }
-});
-
-app.all('/api/notes/*', async (req, res) => {
-  try {
-    const notesHandler = await importHandler('./api/notes.js');
-    notesHandler(req, res);
-  } catch (error) {
-    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
-  }
-});
-
-app.all('/api/categories', async (req, res) => {
-  try {
-    const categoriesHandler = await importHandler('./api/categories.js');
-    categoriesHandler(req, res);
-  } catch (error) {
-    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
-  }
-});
-
-app.all('/api/categories/*', async (req, res) => {
-  try {
-    const categoriesHandler = await importHandler('./api/categories.js');
-    categoriesHandler(req, res);
-  } catch (error) {
-    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
-  }
-});
+// Konfiguracja routerów API
+createApiRouter('/api/tasks', './api/tasks.js');
+createApiRouter('/api/notes', './api/notes.js');
+createApiRouter('/api/categories', './api/categories.js');
 
 // Uruchom serwer
 app.listen(PORT, () => {});

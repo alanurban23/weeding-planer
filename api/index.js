@@ -2,11 +2,15 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
 
 // Load environment variables
 dotenv.config();
+
+// Create Supabase client
+const createSupabaseClient = () => createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_API_KEY
+);
 
 // Create a simple Express app
 const app = express();
@@ -41,10 +45,7 @@ app.get('/api/status', (req, res) => {
 app.get('/api/tasks', async (req, res) => {
   try {
     // Inicjalizacja klienta Supabase z kluczem serwisowym
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_API_KEY // Używamy klucza API zamiast klucza anonimowego
-    );
+    const supabase = createSupabaseClient();
     
     // Pobierz zadania
     const { data: tasks, error } = await supabase
@@ -78,10 +79,7 @@ app.get('/api/tasks', async (req, res) => {
 app.get('/api/categories', async (req, res) => {
   try {
     // Inicjalizacja klienta Supabase z kluczem serwisowym
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_API_KEY // Używamy klucza API zamiast klucza anonimowego
-    );
+    const supabase = createSupabaseClient();
     
     // Sprawdź, czy zmienne środowiskowe są dostępne
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_API_KEY) {
@@ -114,16 +112,10 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-// Create Supabase client directly
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_API_KEY);
-
 // Public API route for notes (no authentication required)
 app.get('/api/notes', async (req, res) => {
   try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_API_KEY // Używamy klucza API zamiast klucza anonimowego
-    );
+    const supabase = createSupabaseClient();
 
     const { data: notes, error } = await supabase
       .from('notes')
@@ -143,10 +135,7 @@ app.get('/api/notes', async (req, res) => {
 // Endpoint do dodawania notatek
 app.post('/api/notes', async (req, res) => {
   try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_API_KEY // Używamy klucza API zamiast klucza anonimowego
-    );
+    const supabase = createSupabaseClient();
     
     // Sprawdź, czy mamy treść notatki
     if (!req.body || !req.body.content) {

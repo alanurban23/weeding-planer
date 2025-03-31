@@ -3,8 +3,25 @@ import { createClient } from '@supabase/supabase-js';
 // Inicjalizacja klienta Supabase z kluczem API
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_API_KEY // Używamy klucza API zamiast klucza anonimowego
+  process.env.SUPABASE_API_KEY
 );
+
+// Funkcje pomocnicze
+const formatTask = (task) => ({
+  ...task,
+  dueDate: task.due_date,
+  notes: Array.isArray(task.notes) ? task.notes : []
+});
+
+const getTaskById = async (id) => {
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', id)
+    .single();
+    
+  return { data, error };
+};
 
 export default async (req, res) => {
   try {
@@ -22,14 +39,7 @@ export default async (req, res) => {
       }
 
       // Transformacja danych - konwersja due_date na dueDate
-      const formattedData = data?.map(task => {
-        return {
-          ...task,
-          dueDate: task.due_date,
-          // Upewnij się, że inne pola są poprawnie sformatowane
-          notes: Array.isArray(task.notes) ? task.notes : []
-        };
-      }) || [];
+      const formattedData = data?.map(formatTask) || [];
       
       res.setHeader('Content-Type', 'application/json');
       res.status(200).json(formattedData);
@@ -44,7 +54,6 @@ export default async (req, res) => {
       
       // Przygotuj dane zadania bez ID - pozwól bazie danych wygenerować ID
       const newTask = {
-        // Nie dodajemy id, aby baza danych mogła użyć wartości domyślnej
         title,
         category,
         notes: notes || [],
@@ -74,11 +83,7 @@ export default async (req, res) => {
       }
       
       // Sprawdź, czy zadanie istnieje
-      const { data: existingTask, error: findError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single();
+      const { data: existingTask, error: findError } = await getTaskById(taskId);
       
       if (findError || !existingTask) {
         return res.status(404).json({ message: 'Zadanie nie znalezione' });
@@ -117,7 +122,7 @@ export default async (req, res) => {
         return res.status(404).json({ message: 'Zadanie nie znalezione' });
       }
       
-      res.status(200).json(data[0]);
+      res.status(200).json(formatTask(data[0]));
     }
     else if (req.method === 'DELETE') {
       // Usuwanie zadania
@@ -130,11 +135,7 @@ export default async (req, res) => {
       }
       
       // Sprawdź, czy zadanie istnieje
-      const { data: existingTask, error: findError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('id', taskId)
-        .single();
+      const { data: existingTask, error: findError } = await getTaskById(taskId);
       
       if (findError || !existingTask) {
         return res.status(404).json({ message: 'Zadanie nie znalezione' });
