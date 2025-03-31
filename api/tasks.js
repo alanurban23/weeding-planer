@@ -36,7 +36,7 @@ export default async (req, res) => {
         category,
         notes: notes || [],
         completed: completed || false,
-        due_date: dueDate,
+        due_date: dueDate || null,
         created_at: new Date().toISOString()
       };
       
@@ -88,7 +88,7 @@ export default async (req, res) => {
       
       // Specjalne traktowanie dla dueDate -> due_date
       if (req.body.dueDate !== undefined) {
-        updateData.due_date = req.body.dueDate;
+        updateData.due_date = req.body.dueDate || null;
       }
       
       // Aktualizuj zadanie

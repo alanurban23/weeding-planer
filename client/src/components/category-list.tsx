@@ -68,8 +68,8 @@ const CategoryList: React.FC<CategoryListProps> = ({
   // Wyświetl listę kategorii
   return (
     <div className="space-y-4">
+      {/* Używamy już posortowanych kategorii, więc nie musimy ich sortować ponownie */}
       {categories
-        .sort(sortCategoriesByRomanNumeral)
         .map((category) => {
           const { totalTasks, completedTasks, completionPercentage } = getCategoryStats(category);
           

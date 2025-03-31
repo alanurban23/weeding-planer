@@ -42,14 +42,20 @@ export function extractRomanNumeral(category: string): string {
 }
 
 // Sort categories by Roman numerals
-export function sortCategoriesByRomanNumeral(a: string, b: string): number {
-  const romanA = extractRomanNumeral(a);
-  const romanB = extractRomanNumeral(b);
-  
-  if (romanA && romanB) {
-    return romanToInt(romanA) - romanToInt(romanB);
-  }
-  
-  // If one or both don't have Roman numerals, fall back to alphabetical sort
-  return a.localeCompare(b, 'pl');
+export function sortCategoriesByRomanNumeral(categories: string[]): string[] {
+  return [...categories].sort((a, b) => {
+    const romanA = extractRomanNumeral(a);
+    const romanB = extractRomanNumeral(b);
+    
+    if (romanA && romanB) {
+      return romanToInt(romanA) - romanToInt(romanB);
+    }
+    
+    // Jeśli tylko jedna kategoria ma rzymską liczbę, ta z rzymską liczbą idzie pierwsza
+    if (romanA) return -1;
+    if (romanB) return 1;
+    
+    // Jeśli żadna nie ma rzymskiej liczby, sortuj alfabetycznie
+    return a.localeCompare(b);
+  });
 }

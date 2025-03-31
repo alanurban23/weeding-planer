@@ -41,6 +41,13 @@ export default function Home() {
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ['/api/tasks'],
+    queryFn: () => apiRequest('/api/tasks')
+  });
+
+  // Pobieranie kategorii bezpośrednio z API
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery<{name: string}[]>({
+    queryKey: ['/api/categories'],
+    queryFn: () => apiRequest('/api/categories')
   });
 
   // Add task mutation
@@ -124,9 +131,14 @@ export default function Home() {
 
   // Wyodrębnianie unikalnych kategorii z zadań
   const uniqueCategories = React.useMemo(() => {
-    // Pobieramy unikalne kategorie z zadań
+    // Jeśli mamy kategorie z API, używamy ich
+    if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
+      return categoriesData.map(cat => cat.name);
+    }
+    
+    // Jako fallback, pobieramy unikalne kategorie z zadań
     return Array.from(new Set(tasks.map(task => task.category).filter(Boolean)));
-  }, [tasks]);
+  }, [tasks, categoriesData]);
 
   // Filtrowanie zadań nadchodzących (w ciągu najbliższych 7 dni) i po terminie
   const upcomingAndOverdueTasks = React.useMemo(() => {
@@ -396,10 +408,10 @@ export default function Home() {
             <div className="mt-6">
               <h2 className="text-xl font-semibold mb-4">Kategorie zadań</h2>
               <CategoryList 
-                categories={uniqueCategories}
-                tasks={tasks}
-                isLoading={isLoading}
-                onManageCategories={() => setShowCategoryManager(true)}
+                categories={sortCategoriesByRomanNumeral(uniqueCategories)} 
+                tasks={tasks} 
+                isLoading={isLoading || isLoadingCategories}
+                onManageCategories={handleOpenCategoryManager} 
               />
             </div>
           </div>

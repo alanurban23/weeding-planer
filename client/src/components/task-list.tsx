@@ -2,7 +2,6 @@ import React from 'react';
 import { Task } from '@shared/schema';
 import TaskItem from './task-item';
 import { Plus } from './icons';
-import { sortCategoriesByRomanNumeral } from '@/lib/utils';
 import { useLocation } from 'wouter';
 
 interface TaskListProps {
@@ -72,8 +71,8 @@ const TaskList: React.FC<TaskListProps> = ({
   return (
     <div className="space-y-8">
       {Object.entries(groupedTasks)
-        // Sort categories by Roman numerals
-        .sort(([categoryA], [categoryB]) => sortCategoriesByRomanNumeral(categoryA, categoryB))
+        // Sortujemy kategorie alfabetycznie, ponieważ funkcja sortCategoriesByRomanNumeral została zmieniona
+        .sort(([categoryA], [categoryB]) => categoryA.localeCompare(categoryB))
         .map(([category, tasks]) => (
           <div key={category}>
             <h2 
