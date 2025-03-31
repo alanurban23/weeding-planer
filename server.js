@@ -8,18 +8,12 @@ import fs from 'fs';
 // Wczytaj zmienne środowiskowe
 dotenv.config();
 
-// Wyświetl informacje o zmiennych środowiskowych (bez wartości kluczy)
-console.log('Zmienne środowiskowe Supabase:');
-console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'dostępny' : 'niedostępny');
-console.log('SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? 'dostępny' : 'niedostępny');
-console.log('SUPABASE_API_KEY:', process.env.SUPABASE_API_KEY ? 'dostępny' : 'niedostępny');
-
 // Uzyskaj ścieżkę bieżącego pliku
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -31,16 +25,9 @@ const importHandler = async (path) => {
     const module = await import(path);
     return module.default;
   } catch (error) {
-    console.error(`Błąd importowania handlera z ${path}:`, error);
     return (req, res) => res.status(500).json({ error: `Nie można załadować handlera: ${error.message}` });
   }
 };
-
-// Sprawdź, czy pliki istnieją
-console.log('Sprawdzanie plików API:');
-console.log('api/tasks.js istnieje:', fs.existsSync('./api/tasks.js'));
-console.log('api/notes.js istnieje:', fs.existsSync('./api/notes.js'));
-console.log('api/categories.js istnieje:', fs.existsSync('./api/categories.js'));
 
 // Obsługa funkcji serverless
 app.all('/api/tasks', async (req, res) => {
@@ -48,7 +35,6 @@ app.all('/api/tasks', async (req, res) => {
     const tasksHandler = await importHandler('./api/tasks.js');
     tasksHandler(req, res);
   } catch (error) {
-    console.error('Błąd podczas obsługi /api/tasks:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
@@ -58,7 +44,6 @@ app.all('/api/tasks/*', async (req, res) => {
     const tasksHandler = await importHandler('./api/tasks.js');
     tasksHandler(req, res);
   } catch (error) {
-    console.error('Błąd podczas obsługi /api/tasks/*:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
@@ -68,7 +53,6 @@ app.all('/api/notes', async (req, res) => {
     const notesHandler = await importHandler('./api/notes.js');
     notesHandler(req, res);
   } catch (error) {
-    console.error('Błąd podczas obsługi /api/notes:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
@@ -78,7 +62,6 @@ app.all('/api/notes/*', async (req, res) => {
     const notesHandler = await importHandler('./api/notes.js');
     notesHandler(req, res);
   } catch (error) {
-    console.error('Błąd podczas obsługi /api/notes/*:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
@@ -88,7 +71,6 @@ app.all('/api/categories', async (req, res) => {
     const categoriesHandler = await importHandler('./api/categories.js');
     categoriesHandler(req, res);
   } catch (error) {
-    console.error('Błąd podczas obsługi /api/categories:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
@@ -98,12 +80,9 @@ app.all('/api/categories/*', async (req, res) => {
     const categoriesHandler = await importHandler('./api/categories.js');
     categoriesHandler(req, res);
   } catch (error) {
-    console.error('Błąd podczas obsługi /api/categories/*:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
 
 // Uruchom serwer
-app.listen(PORT, () => {
-  console.log(`Serwer API działa na porcie ${PORT}`);
-});
+app.listen(PORT, () => {});

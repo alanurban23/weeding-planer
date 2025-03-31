@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
+// Inicjalizacja klienta Supabase z kluczem API
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_API_KEY // Używamy klucza API zamiast klucza anonimowego
 );
 
 export default async (req, res) => {
@@ -16,10 +17,22 @@ export default async (req, res) => {
         .not('created_at', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
+      // Transformacja danych - konwersja due_date na dueDate
+      const formattedData = data?.map(task => {
+        return {
+          ...task,
+          dueDate: task.due_date,
+          // Upewnij się, że inne pola są poprawnie sformatowane
+          notes: Array.isArray(task.notes) ? task.notes : []
+        };
+      }) || [];
+      
       res.setHeader('Content-Type', 'application/json');
-      res.status(200).json(data);
+      res.status(200).json(formattedData);
     } 
     else if (req.method === 'POST') {
       // Dodawanie nowego zadania
@@ -46,7 +59,6 @@ export default async (req, res) => {
         .select();
         
       if (error) {
-        console.error('Błąd dodawania zadania:', error);
         return res.status(500).json({ error: 'Błąd dodawania zadania', details: error.message });
       }
       
@@ -69,7 +81,6 @@ export default async (req, res) => {
         .single();
       
       if (findError || !existingTask) {
-        console.error('Zadanie nie znalezione:', taskId);
         return res.status(404).json({ message: 'Zadanie nie znalezione' });
       }
       
@@ -99,7 +110,6 @@ export default async (req, res) => {
         .select();
       
       if (error) {
-        console.error('Błąd aktualizacji zadania:', error);
         return res.status(500).json({ error: 'Błąd aktualizacji zadania', details: error.message });
       }
       
@@ -115,8 +125,6 @@ export default async (req, res) => {
       const urlParts = req.url.split('/');
       const taskId = urlParts[urlParts.length - 1];
       
-      console.log('Próba usunięcia zadania o ID:', taskId, 'URL:', req.url);
-      
       if (!taskId) {
         return res.status(400).json({ error: 'Brak ID zadania' });
       }
@@ -129,7 +137,6 @@ export default async (req, res) => {
         .single();
       
       if (findError || !existingTask) {
-        console.error('Zadanie nie znalezione:', taskId);
         return res.status(404).json({ message: 'Zadanie nie znalezione' });
       }
       
@@ -140,11 +147,9 @@ export default async (req, res) => {
         .eq('id', taskId);
       
       if (error) {
-        console.error('Błąd usuwania zadania:', error);
         return res.status(500).json({ error: 'Błąd usuwania zadania', details: error.message });
       }
       
-      console.log('Zadanie usunięte pomyślnie:', taskId);
       res.status(200).json({ message: 'Zadanie zostało pomyślnie usunięte' });
     }
     else {

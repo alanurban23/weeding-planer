@@ -7,7 +7,7 @@ import TaskList from '@/components/task-list';
 import TaskForm, { EditingTask } from '@/components/task-form';
 import MobileNavigation from '@/components/mobile-navigation';
 import { NotesSection } from '@/components/notes-section';
-import { sortCategoriesByRomanNumeral, generateId } from '@/lib/utils';
+import { generateId } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,11 +41,18 @@ export default function Home() {
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
     queryKey: ['/api/tasks'],
-    queryFn: () => apiRequest('/api/tasks')
+    queryFn: async () => {
+      try {
+        const data = await apiRequest('/api/tasks');
+        return data || [];
+      } catch (error) {
+        throw error;
+      }
+    }
   });
 
   // Pobieranie kategorii bezpośrednio z API
-  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery<{name: string}[]>({
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery<{id: string, name: string}[]>({
     queryKey: ['/api/categories'],
     queryFn: () => apiRequest('/api/categories')
   });
@@ -131,13 +138,40 @@ export default function Home() {
 
   // Wyodrębnianie unikalnych kategorii z zadań
   const uniqueCategories = React.useMemo(() => {
-    // Jeśli mamy kategorie z API, używamy ich
-    if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
-      return categoriesData.map(cat => cat.name);
-    }
+    // Debugowanie
+    console.log('Dane kategorii:', categoriesData);
     
-    // Jako fallback, pobieramy unikalne kategorie z zadań
-    return Array.from(new Set(tasks.map(task => task.category).filter(Boolean)));
+    try {
+      // Jeśli mamy kategorie z API, używamy ich
+      if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
+        // Konwertujemy obiekty kategorii na stringi
+        const categoryNames = categoriesData.map(cat => {
+          if (typeof cat === 'object' && cat !== null) {
+            // Sprawdź, czy kategoria ma pole name
+            if (cat.name && typeof cat.name === 'string') {
+              return cat.name;
+            }
+            // Jeśli nie ma pola name, użyj id jako string
+            if (cat.id) {
+              return String(cat.id);
+            }
+          }
+          // Jeśli to nie jest obiekt, konwertuj na string
+          return String(cat);
+        }).filter(Boolean);
+        
+        console.log('Przetworzone nazwy kategorii:', categoryNames);
+        return categoryNames;
+      }
+      
+      // Jako fallback, pobieramy unikalne kategorie z zadań
+      const taskCategories = Array.from(new Set(tasks.map(task => task.category).filter(Boolean)));
+      console.log('Kategorie z zadań:', taskCategories);
+      return taskCategories;
+    } catch (error) {
+      console.error('Błąd podczas przetwarzania kategorii:', error);
+      return [];
+    }
   }, [tasks, categoriesData]);
 
   // Filtrowanie zadań nadchodzących (w ciągu najbliższych 7 dni) i po terminie
@@ -148,7 +182,7 @@ export default function Home() {
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
     
-    return tasks.filter(task => {
+    const filteredTasks = tasks.filter(task => {
       if (!task.dueDate || task.completed) return false;
       
       const dueDate = new Date(task.dueDate);
@@ -161,6 +195,8 @@ export default function Home() {
       if (!b.dueDate) return -1;
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
+    
+    return filteredTasks;
   }, [tasks]);
 
   // Grupowanie zadań nadchodzących i po terminie
@@ -408,7 +444,7 @@ export default function Home() {
             <div className="mt-6">
               <h2 className="text-xl font-semibold mb-4">Kategorie zadań</h2>
               <CategoryList 
-                categories={sortCategoriesByRomanNumeral(uniqueCategories)} 
+                categories={uniqueCategories} 
                 tasks={tasks} 
                 isLoading={isLoading || isLoadingCategories}
                 onManageCategories={handleOpenCategoryManager} 

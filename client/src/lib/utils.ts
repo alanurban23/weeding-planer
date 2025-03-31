@@ -37,25 +37,9 @@ export function romanToInt(s: string): number {
 
 // Extract Roman numeral from category name (e.g. "I. Category Name" -> "I")
 export function extractRomanNumeral(category: string): string {
+  if (!category || typeof category !== 'string') {
+    return '';
+  }
   const match = category.match(/^([IVXLCDM]+)\./);
   return match ? match[1] : '';
-}
-
-// Sort categories by Roman numerals
-export function sortCategoriesByRomanNumeral(categories: string[]): string[] {
-  return [...categories].sort((a, b) => {
-    const romanA = extractRomanNumeral(a);
-    const romanB = extractRomanNumeral(b);
-    
-    if (romanA && romanB) {
-      return romanToInt(romanA) - romanToInt(romanB);
-    }
-    
-    // Jeśli tylko jedna kategoria ma rzymską liczbę, ta z rzymską liczbą idzie pierwsza
-    if (romanA) return -1;
-    if (romanB) return 1;
-    
-    // Jeśli żadna nie ma rzymskiej liczby, sortuj alfabetycznie
-    return a.localeCompare(b);
-  });
 }

@@ -1,69 +1,81 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient } from '@tanstack/react-query';
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+// Inicjalizacja klienta React Query
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+    },
+  }
+});
+
+// Funkcja do wykonywania żądań API
+export async function apiRequest(endpoint: string, method: string = 'GET', data?: any) {
+  try {
+    console.log(`Wykonywanie żądania do ${endpoint}, metoda: ${method}`);
+    
+    const options: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+    
+    // Dodaj dane do body dla żądań POST, PUT, PATCH
+    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+      // Jeśli to żądanie POST do /api/notes, usuń pole id z danych
+      if (method === 'POST' && endpoint.includes('/api/notes') && data.id) {
+        const processedData = { ...data };
+        delete processedData.id;
+        console.log('Usunięto pole id z danych POST dla /api/notes:', processedData);
+        options.body = JSON.stringify(processedData);
+      } else {
+        options.body = JSON.stringify(data);
+      }
+    }
+    
+    const response = await fetch(endpoint, options);
+
+    if (!response.ok) {
+      console.error(`Błąd odpowiedzi: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`Treść błędu: ${errorText}`);
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
+    }
+
+    const responseData = await response.json();
+    console.log(`Otrzymano odpowiedź z ${endpoint}:`, responseData);
+    return responseData;
+  } catch (error) {
+    console.error(`Błąd podczas wykonywania żądania do ${endpoint}:`, error);
+    throw error;
   }
 }
-
-export const apiRequest = async (url: string, method: string = 'GET', data?: any) => {
-  const options: RequestInit = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  };
-
-  if (data) {
-    // Upewnij się, że daty są poprawnie serializowane
-    const processedData = JSON.parse(JSON.stringify(data));
-    options.body = JSON.stringify(processedData);
-  }
-
-  const response = await fetch(url, options);
-  
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Wystąpił błąd podczas komunikacji z API');
-  }
-  
-  const responseData = await response.json();
-  
-  // Konwertuj pola due_date na dueDate i created_at na createdAt
-  if (Array.isArray(responseData)) {
-    return responseData.map(transformTaskResponse);
-  } else if (responseData && typeof responseData === 'object') {
-    return transformTaskResponse(responseData);
-  }
-  
-  return responseData;
-};
 
 // Funkcja pomocnicza do transformacji odpowiedzi z API
 const transformTaskResponse = (task: any) => {
   if (!task) return task;
   
-  const transformed: any = { ...task };
+  const transformed = { ...task };
   
   // Konwertuj due_date na dueDate
-  if ('due_date' in task) {
-    transformed.dueDate = task.due_date;
-    // Nie usuwamy oryginalnego pola, aby zachować kompatybilność
+  if ('due_date' in transformed) {
+    transformed.dueDate = transformed.due_date;
+    delete transformed.due_date;
   }
   
   // Konwertuj created_at na createdAt
-  if ('created_at' in task) {
-    transformed.createdAt = task.created_at;
-    // Nie usuwamy oryginalnego pola, aby zachować kompatybilność
+  if ('created_at' in transformed) {
+    transformed.createdAt = transformed.created_at;
+    delete transformed.created_at;
   }
   
   return transformed;
 };
 
+// Funkcja do pobierania danych z API
 type UnauthorizedBehavior = "returnNull" | "throw";
 
-// Poprawiona funkcja getQueryFn z generycznym typem T
 export function getQueryFn<T>({ url, unauthorizedBehavior = "throw" }: {
   url: string;
   unauthorizedBehavior?: UnauthorizedBehavior;
@@ -81,19 +93,3 @@ export function getQueryFn<T>({ url, unauthorizedBehavior = "throw" }: {
     }
   };
 }
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // Używamy bardziej ogólnego typu any, ponieważ nie znamy dokładnego typu danych
-      queryFn: getQueryFn<any>({ url: '', unauthorizedBehavior: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});

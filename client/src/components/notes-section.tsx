@@ -1,16 +1,11 @@
 import React, { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, X } from "@/components/icons";
-import { generateId } from "@/lib/utils";
+import { X, Plus } from "@/components/icons";
 import { apiRequest } from "@/lib/queryClient";
-
-interface Note {
-  id: string;
-  content: string;
-  createdAt: Date;
-}
+import { useToast } from "@/hooks/use-toast";
+import AddNote from "./AddNote.tsx";
+import { getNotes, Note } from "@/lib/api.ts";
 
 interface NotesSectionProps {
   onCreateFromNote: (content: string, category: string) => void;
@@ -18,33 +13,17 @@ interface NotesSectionProps {
 
 export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) => {
   const [showAddNoteForm, setShowAddNoteForm] = useState(false);
-  const [newNoteContent, setNewNoteContent] = useState("");
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
-  // Pobieranie notatek
+  // Pobieranie notatek przy użyciu funkcji z api.ts
   const { data: notes = [], isLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
-    queryFn: () => apiRequest("/api/notes")
+    queryFn: getNotes
   });
 
-  // Dodawanie notatki
-  const addNoteMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const newNote = {
-        id: generateId(),
-        content,
-      };
-      return apiRequest("/api/notes", "POST", newNote);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      setNewNoteContent("");
-      setShowAddNoteForm(false);
-    },
-    onError: (error) => {
-      console.error("Błąd dodawania notatki:", error);
-    }
-  });
+  // Filtrowanie pustych notatek
+  const filteredNotes = notes.filter((note: Note) => note.content && note.content.trim() !== '');
 
   // Usuwanie notatki
   const deleteNoteMutation = useMutation({
@@ -55,12 +34,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
     },
   });
-
-  const handleAddNote = () => {
-    if (newNoteContent.trim()) {
-      addNoteMutation.mutate(newNoteContent);
-    }
-  };
 
   const handleDeleteNote = (id: string) => {
     deleteNoteMutation.mutate(id);
@@ -88,42 +61,25 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
 
       {showAddNoteForm && (
         <div className="p-4 border-b">
-          <div className="flex space-x-2">
-            <Input
-              type="text"
-              value={newNoteContent}
-              onChange={(e) => setNewNoteContent(e.target.value)}
-              placeholder="Wpisz treść notatki..."
-              className="flex-1"
-            />
-            <Button
-              onClick={handleAddNote}
-              disabled={!newNoteContent.trim() || addNoteMutation.isPending}
-            >
-              Dodaj
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddNoteForm(false);
-                setNewNoteContent("");
-              }}
-            >
-              Anuluj
-            </Button>
-          </div>
+          <AddNote />
+          <Button
+            variant="outline"
+            onClick={() => setShowAddNoteForm(false)}
+            className="mt-2"
+          >
+            Anuluj
+          </Button>
         </div>
       )}
 
       <div className="p-4">
         {isLoading ? (
           <div className="text-center py-4 text-gray-500">Ładowanie notatek...</div>
-        ) : notes.length === 0 ? (
+        ) : filteredNotes.length === 0 ? (
           <div className="text-center py-4 text-gray-500">Brak notatek</div>
         ) : (
           <ul className="space-y-2">
-            {notes
-              .filter(note => note.content && note.content.trim() !== '') 
+            {filteredNotes
               .map((note) => (
                 <li
                   key={note.id}
@@ -156,4 +112,4 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
       </div>
     </div>
   );
-};
+}
