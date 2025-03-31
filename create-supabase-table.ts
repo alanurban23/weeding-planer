@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Pobieramy dane uwierzytelniające z zmiennych środowiskowych
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_API_KEY;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 // Sprawdzenie, czy zmienne środowiskowe zostały ustawione
 if (!supabaseUrl || !supabaseKey) {

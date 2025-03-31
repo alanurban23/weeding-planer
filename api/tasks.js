@@ -10,6 +10,7 @@ export default async (req, res) => {
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
+      .not('created_at', 'is', null)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
