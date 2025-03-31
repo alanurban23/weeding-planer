@@ -29,8 +29,9 @@ export default async (req, res) => {
         return res.status(400).json({ error: 'Brak wymaganego tytułu zadania' });
       }
       
+      // Przygotuj dane zadania bez ID - pozwól bazie danych wygenerować ID
       const newTask = {
-        id,
+        // Nie dodajemy id, aby baza danych mogła użyć wartości domyślnej
         title,
         category,
         notes: notes || [],
