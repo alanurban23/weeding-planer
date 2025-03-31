@@ -341,7 +341,7 @@ export class MemStorage implements IStorage {
           'Do zrobienia jutro',
         ],
         completed: false,
-        dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+        dueDate: new Date(Date.now() + 86400000), // Add 24 hours safely
         category: 'III. Przygotowania do Ceremonii',
         createdAt: new Date(),
       },
