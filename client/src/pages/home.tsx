@@ -10,6 +10,16 @@ import MobileNavigation from '@/components/mobile-navigation';
 import MobileFilter from '@/components/mobile-filter';
 import { NotesSection } from '@/components/notes-section';
 import { sortCategoriesByRomanNumeral, generateId } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Home() {
   const { toast } = useToast();
@@ -22,6 +32,8 @@ export default function Home() {
     search: '',
     sort: 'dueDate',
   });
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
@@ -128,8 +140,15 @@ export default function Home() {
 
   // Delete task with confirmation
   const handleDeleteTask = (id: string) => {
-    if (window.confirm('Czy na pewno chcesz usunąć to zadanie?')) {
-      deleteTaskMutation.mutate(id);
+    setTaskToDelete(id);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      deleteTaskMutation.mutate(taskToDelete);
+      setShowDeleteDialog(false);
+      setTaskToDelete(null);
     }
   };
 
@@ -313,6 +332,22 @@ export default function Home() {
         categories={categories}
         onCreateFromNote={handleCreateFromNote}
       />
+
+      {/* Delete Task Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Potwierdzenie usunięcia</AlertDialogTitle>
+            <AlertDialogDescription>
+              Czy na pewno chcesz usunąć to zadanie? Tej operacji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setTaskToDelete(null)}>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTask}>Usuń</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Mobile bottom navigation */}
       <MobileNavigation onAddTask={handleAddTask} />

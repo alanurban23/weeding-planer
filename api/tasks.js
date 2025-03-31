@@ -109,9 +109,47 @@ export default async (req, res) => {
       
       res.status(200).json(data[0]);
     }
+    else if (req.method === 'DELETE') {
+      // Usuwanie zadania
+      // Pobierz ID zadania z URL
+      const urlParts = req.url.split('/');
+      const taskId = urlParts[urlParts.length - 1];
+      
+      console.log('Próba usunięcia zadania o ID:', taskId, 'URL:', req.url);
+      
+      if (!taskId) {
+        return res.status(400).json({ error: 'Brak ID zadania' });
+      }
+      
+      // Sprawdź, czy zadanie istnieje
+      const { data: existingTask, error: findError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .single();
+      
+      if (findError || !existingTask) {
+        console.error('Zadanie nie znalezione:', taskId);
+        return res.status(404).json({ message: 'Zadanie nie znalezione' });
+      }
+      
+      // Usuń zadanie
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+      
+      if (error) {
+        console.error('Błąd usuwania zadania:', error);
+        return res.status(500).json({ error: 'Błąd usuwania zadania', details: error.message });
+      }
+      
+      console.log('Zadanie usunięte pomyślnie:', taskId);
+      res.status(200).json({ message: 'Zadanie zostało pomyślnie usunięte' });
+    }
     else {
       // Nieobsługiwana metoda HTTP
-      res.setHeader('Allow', ['GET', 'POST', 'PATCH']);
+      res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'DELETE']);
       res.status(405).json({ error: `Metoda ${req.method} nie jest obsługiwana` });
     }
   } catch (error) {
