@@ -205,7 +205,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <Input
               id="task-due-date"
               type="date"
-              value={editingTask.dueDate ? formatDateForInput(new Date(editingTask.dueDate)) : ''}
+              value={editingTask.dueDate && editingTask.dueDate !== '' ? formatDateForInput(new Date(editingTask.dueDate)) : ''}
               onChange={(e) => setEditingTask(prev => ({ 
                 ...prev, 
                 dueDate: e.target.value || null
