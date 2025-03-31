@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CategoryManager from '@/components/category-manager';
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const { toast } = useToast();
@@ -34,6 +36,7 @@ export default function Home() {
   });
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
@@ -246,22 +249,34 @@ export default function Home() {
     return grouped;
   }, [filteredTasks]);
 
+  // Open category manager
+  const handleOpenCategoryManager = () => {
+    setShowCategoryManager(true);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Planowanie Wesela</h1>
-          <div className="flex space-x-2">
+          <div className="flex gap-2 items-center">
             <button 
-              onClick={handleAddTask} 
-              className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              onClick={handleAddTask}
+              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4 mr-1">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
               </svg>
               Dodaj
             </button>
+            <Button 
+              onClick={handleOpenCategoryManager} 
+              variant="outline" 
+              className="flex items-center gap-1"
+            >
+              Zarządzaj kategoriami
+            </Button>
           </div>
         </div>
       </header>
@@ -348,6 +363,13 @@ export default function Home() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Category Manager Dialog */}
+      <CategoryManager
+        show={showCategoryManager}
+        onClose={() => setShowCategoryManager(false)}
+        existingCategories={categories}
+      />
 
       {/* Mobile bottom navigation */}
       <MobileNavigation onAddTask={handleAddTask} />

@@ -40,6 +40,7 @@ const importHandler = async (path) => {
 console.log('Sprawdzanie plików API:');
 console.log('api/tasks.js istnieje:', fs.existsSync('./api/tasks.js'));
 console.log('api/notes.js istnieje:', fs.existsSync('./api/notes.js'));
+console.log('api/categories.js istnieje:', fs.existsSync('./api/categories.js'));
 
 // Obsługa funkcji serverless
 app.all('/api/tasks', async (req, res) => {
@@ -78,6 +79,26 @@ app.all('/api/notes/*', async (req, res) => {
     notesHandler(req, res);
   } catch (error) {
     console.error('Błąd podczas obsługi /api/notes/*:', error);
+    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
+  }
+});
+
+app.all('/api/categories', async (req, res) => {
+  try {
+    const categoriesHandler = await importHandler('./api/categories.js');
+    categoriesHandler(req, res);
+  } catch (error) {
+    console.error('Błąd podczas obsługi /api/categories:', error);
+    res.status(500).json({ error: `Błąd serwera: ${error.message}` });
+  }
+});
+
+app.all('/api/categories/*', async (req, res) => {
+  try {
+    const categoriesHandler = await importHandler('./api/categories.js');
+    categoriesHandler(req, res);
+  } catch (error) {
+    console.error('Błąd podczas obsługi /api/categories/*:', error);
     res.status(500).json({ error: `Błąd serwera: ${error.message}` });
   }
 });
