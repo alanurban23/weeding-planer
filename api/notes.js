@@ -39,6 +39,8 @@ export default async (req, res) => {
         return res.status(400).json({ error: 'Brak wymaganej treści notatki' });
       }
       
+      console.log('Dodawanie notatki:', { id, content });
+      
       const { data, error } = await supabase
         .from('notes')
         .insert([
@@ -49,13 +51,13 @@ export default async (req, res) => {
           }
         ])
         .select();
-        
+
       if (error) {
         console.error('Błąd dodawania notatki:', error);
-        return res.status(500).json({ error: 'Błąd dodawania notatki', details: error.message });
+        throw error;
       }
       
-      res.status(201).json(data[0]);
+      res.status(201).json(data[0] || {});
     }
     else {
       // Nieobsługiwana metoda HTTP

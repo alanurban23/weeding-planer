@@ -24,6 +24,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
   // Pobieranie notatek
   const { data: notes = [], isLoading } = useQuery<Note[]>({
     queryKey: ["/api/notes"],
+    queryFn: () => apiRequest("/api/notes")
   });
 
   // Dodawanie notatki
@@ -33,19 +34,22 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
         id: generateId(),
         content,
       };
-      return apiRequest<Note>("/api/notes", "POST", newNote);
+      return apiRequest("/api/notes", "POST", newNote);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
       setNewNoteContent("");
       setShowAddNoteForm(false);
     },
+    onError: (error) => {
+      console.error("Błąd dodawania notatki:", error);
+    }
   });
 
   // Usuwanie notatki
   const deleteNoteMutation = useMutation({
     mutationFn: (id: string) => {
-      return apiRequest<{ success: boolean }>("/api/notes/" + id, "DELETE");
+      return apiRequest("/api/notes/" + id, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
@@ -118,31 +122,35 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
           <div className="text-center py-4 text-gray-500">Brak notatek</div>
         ) : (
           <ul className="space-y-2">
-            {notes.map((note) => (
-              <li
-                key={note.id}
-                className="flex justify-between items-start p-3 bg-gray-50 rounded-md group"
-              >
-                <div className="flex-1">{note.content}</div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleCreateTask(note.content)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center transition-opacity"
-                    title="Przekształć na zadanie"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="text-xs ml-1">Przekształć na zadanie</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteNote(note.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
-                    title="Usuń notatkę"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </li>
-            ))}
+            {notes
+              .filter(note => note.content && note.content.trim() !== '') 
+              .map((note) => (
+                <li
+                  key={note.id}
+                  className="flex justify-between items-start p-3 bg-gray-50 rounded-md group"
+                >
+                  <div className="flex-1">
+                    {note.content}
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleCreateTask(note.content)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center transition-opacity"
+                      title="Przekształć na zadanie"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="text-xs ml-1">Przekształć na zadanie</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteNote(note.id)}
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                      title="Usuń notatkę"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
           </ul>
         )}
       </div>
