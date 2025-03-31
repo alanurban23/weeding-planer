@@ -3,6 +3,7 @@ import { Task } from '@shared/schema';
 import TaskItem from './task-item';
 import { Plus } from './icons';
 import { sortCategoriesByRomanNumeral } from '@/lib/utils';
+import { useLocation } from 'wouter';
 
 interface TaskListProps {
   groupedTasks: Record<string, Task[]>;
@@ -67,8 +68,6 @@ const TaskList: React.FC<TaskListProps> = ({
     );
   }
 
-  // Import is already declared at the top of the file
-
   // Display tasks grouped by category
   return (
     <div className="space-y-8">
@@ -77,7 +76,26 @@ const TaskList: React.FC<TaskListProps> = ({
         .sort(([categoryA], [categoryB]) => sortCategoriesByRomanNumeral(categoryA, categoryB))
         .map(([category, tasks]) => (
           <div key={category}>
-            <h2 className="text-lg font-medium text-gray-900 mb-4">{category}</h2>
+            <h2 
+              className="text-lg font-medium text-gray-900 mb-4 hover:text-primary cursor-pointer flex items-center"
+              onClick={() => window.location.href = `/kategoria/${encodeURIComponent(category)}`}
+            >
+              {category}
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-4 w-4 ml-2" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M9 5l7 7-7 7" 
+                />
+              </svg>
+            </h2>
             <ul className="space-y-3">
               {tasks.map(task => (
                 <TaskItem

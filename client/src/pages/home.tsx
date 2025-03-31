@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import CategoryManager from '@/components/category-manager';
+import CategoryList from '@/components/category-list';
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -122,11 +123,10 @@ export default function Home() {
     },
   });
 
-  // Get unique categories from tasks
-  const categories = React.useMemo(() => {
-    const uniqueCategories = Array.from(new Set(tasks.map(task => task.category)));
-    // Sort by Roman numerals
-    return uniqueCategories.filter(Boolean).sort(sortCategoriesByRomanNumeral);
+  // Wyodrębnianie unikalnych kategorii z zadań
+  const uniqueCategories = React.useMemo(() => {
+    // Pobieramy unikalne kategorie z zadań
+    return Array.from(new Set(tasks.map(task => task.category).filter(Boolean)));
   }, [tasks]);
 
   // Open add task modal
@@ -193,147 +193,39 @@ export default function Home() {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
-  // Filter and sort tasks
-  const filteredTasks = React.useMemo(() => {
-    return tasks.filter(task => {
-      // Filter by status
-      if (filters.status === 'active' && task.completed) return false;
-      if (filters.status === 'completed' && !task.completed) return false;
-      
-      // Filter by category
-      if (filters.category && task.category !== filters.category) return false;
-      
-      // Filter by search query
-      if (filters.search) {
-        const query = filters.search.toLowerCase();
-        const titleMatch = task.title.toLowerCase().includes(query);
-        const notesMatch = task.notes.some(note => 
-          note.toLowerCase().includes(query)
-        );
-        const categoryMatch = task.category.toLowerCase().includes(query);
-        
-        if (!titleMatch && !notesMatch && !categoryMatch) return false;
-      }
-      
-      return true;
-    }).sort((a, b) => {
-      // Sort tasks
-      if (filters.sort === 'title') {
-        return a.title.localeCompare(b.title, 'pl');
-      } else if (filters.sort === 'dueDate') {
-        // If no due dates, put them at the end
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      } else if (filters.sort === 'category') {
-        return a.category.localeCompare(b.category, 'pl');
-      }
-      
-      return 0;
-    });
-  }, [tasks, filters]);
-
-  // Group tasks by category
-  const groupedTasks = React.useMemo(() => {
-    const grouped: Record<string, Task[]> = {};
-    
-    filteredTasks.forEach(task => {
-      if (!grouped[task.category]) {
-        grouped[task.category] = [];
-      }
-      grouped[task.category].push(task);
-    });
-    
-    return grouped;
-  }, [filteredTasks]);
-
   // Open category manager
   const handleOpenCategoryManager = () => {
     setShowCategoryManager(true);
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-100">
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Planowanie Wesela</h1>
-          <div className="flex gap-2 items-center">
-            <button 
-              onClick={handleAddTask}
-              className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              Dodaj
-            </button>
-            <Button 
-              onClick={handleOpenCategoryManager} 
-              variant="outline" 
-              className="flex items-center gap-1"
-            >
-              Zarządzaj kategoriami
-            </Button>
-          </div>
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-gray-900">
+            CodeNinja - Planer Weselny
+          </h1>
+          <Button onClick={() => setShowCategoryManager(true)}>
+            Zarządzaj kategoriami
+          </Button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-          {/* Sidebar with filters on desktop */}
-          <TaskFilter 
-            className="hidden lg:block lg:col-span-3"
-            filters={filters}
-            categories={categories}
-            onFilterChange={handleFilterChange}
-          />
-
-          {/* Mobile filter dialog */}
-          <MobileFilter
-            show={showFilterModal}
-            onClose={() => setShowFilterModal(false)}
-            filters={filters}
-            categories={categories}
-            onFilterChange={handleFilterChange}
-          />
-
-          {/* Task List */}
-          <div className="mt-6 lg:mt-0 lg:col-span-9">
-            {/* Mobile controls */}
-            <div className="lg:hidden flex justify-between items-center mb-4">
-              <div>
-                <span className="text-sm font-medium text-gray-500">
-                  {filteredTasks.length} zadań
-                </span>
-              </div>
-              <button 
-                onClick={() => setShowFilterModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                Filtry
-              </button>
-            </div>
-
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="grid grid-cols-1 gap-6">
             {/* Sekcja notatek */}
             <NotesSection onCreateFromNote={handleCreateFromNote} />
             
-            {/* Lista zadań */}
-            <TaskList 
-              groupedTasks={groupedTasks}
-              isLoading={isLoading}
-              onToggleTaskCompletion={handleToggleTaskCompletion}
-              onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
-              onAddTask={handleAddTask}
-              onCreateFromNote={handleCreateFromNote}
-            />
+            {/* Lista kategorii */}
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold mb-4">Kategorie zadań</h2>
+              <CategoryList 
+                categories={uniqueCategories}
+                isLoading={isLoading}
+                onManageCategories={() => setShowCategoryManager(true)}
+              />
+            </div>
           </div>
         </div>
       </main>
@@ -344,7 +236,7 @@ export default function Home() {
         onClose={() => setShowAddTaskModal(false)}
         onSave={handleSaveTask}
         task={editingTask}
-        categories={categories}
+        categories={uniqueCategories}
         onCreateFromNote={handleCreateFromNote}
       />
 
@@ -368,7 +260,7 @@ export default function Home() {
       <CategoryManager
         show={showCategoryManager}
         onClose={() => setShowCategoryManager(false)}
-        existingCategories={categories}
+        existingCategories={uniqueCategories}
       />
 
       {/* Mobile bottom navigation */}
