@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { X, Plus } from "@/components/icons";
@@ -9,29 +9,43 @@ import { getNotes, Note } from "@/lib/api.ts";
 
 interface NotesSectionProps {
   onCreateFromNote: (content: string, category: string) => void;
+  category?: string; 
 }
 
-export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) => {
+export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, category }) => {
   const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Pobieranie notatek przy użyciu funkcji z api.ts
-  const { data: notes = [], isLoading } = useQuery<Note[]>({
-    queryKey: ["/api/notes"],
-    queryFn: getNotes
+  const { data: notes = [], isLoading, refetch } = useQuery<Note[]>({
+    queryKey: ["/api/notes", category], 
+    queryFn: async () => {
+      if (category) {
+        const response = await fetch(`/api/notes?category=${encodeURIComponent(category)}`);
+        if (!response.ok) {
+          throw new Error('Błąd pobierania notatek dla kategorii');
+        }
+        return response.json();
+      }
+      return getNotes();
+    }
   });
 
-  // Filtrowanie pustych notatek
+  useEffect(() => {
+    refetch();
+  }, [category, refetch]);
+
   const filteredNotes = notes.filter((note: Note) => note.content && note.content.trim() !== '');
 
-  // Usuwanie notatki
   const deleteNoteMutation = useMutation({
     mutationFn: (id: string) => {
       return apiRequest("/api/notes/" + id, "DELETE");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
+      if (category) {
+        queryClient.invalidateQueries({ queryKey: ["/api/notes", category] });
+      }
     },
   });
 
@@ -39,16 +53,16 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
     deleteNoteMutation.mutate(id);
   };
 
-  const handleCreateTask = (content: string, category: string = "I. Ustalenia Ogólne") => {
-    onCreateFromNote(content, category);
-    // Możemy usunąć notatkę po przekształceniu jej w zadanie
-    // deleteNoteMutation.mutate(id);
+  const handleCreateTask = (content: string, noteCategory: string = category || "I. Ustalenia Ogólne") => {
+    onCreateFromNote(content, noteCategory);
   };
 
   return (
     <div className="bg-white rounded-lg shadow mb-8">
       <div className="p-4 border-b flex justify-between items-center">
-        <h2 className="text-lg font-medium">Notatki</h2>
+        <h2 className="text-lg font-medium">
+          {category ? `Notatki w kategorii: ${category}` : "Notatki"}
+        </h2>
         <Button 
           variant="ghost" 
           onClick={() => setShowAddNoteForm(true)}
@@ -61,7 +75,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
 
       {showAddNoteForm && (
         <div className="p-4 border-b">
-          <AddNote />
+          <AddNote category={category} />
           <Button
             variant="outline"
             onClick={() => setShowAddNoteForm(false)}
@@ -76,7 +90,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
         {isLoading ? (
           <div className="text-center py-4 text-gray-500">Ładowanie notatek...</div>
         ) : filteredNotes.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">Brak notatek</div>
+          <div className="text-center py-4 text-gray-500">
+            {category ? `Brak notatek w kategorii ${category}` : "Brak notatek"}
+          </div>
         ) : (
           <ul className="space-y-2">
             {filteredNotes
@@ -90,7 +106,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote }) 
                   </div>
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => handleCreateTask(note.content)}
+                      onClick={() => handleCreateTask(note.content, note.category)}
                       className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center transition-opacity"
                       title="Przekształć na zadanie"
                     >

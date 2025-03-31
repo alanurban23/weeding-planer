@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
-const AddNote: React.FC = () => {
+interface AddNoteProps {
+    category?: string;
+}
+
+const AddNote: React.FC<AddNoteProps> = ({ category }) => {
     const [note, setNote] = useState('');
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -15,6 +19,10 @@ const AddNote: React.FC = () => {
         onSuccess: () => {
             // Odświeżenie listy notatek po dodaniu nowej
             queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+            // Jeśli podano kategorię, odśwież również listę notatek dla tej kategorii
+            if (category) {
+                queryClient.invalidateQueries({ queryKey: ['/api/notes', category] });
+            }
             // Resetowanie formularza
             setNote('');
             toast({
@@ -40,7 +48,16 @@ const AddNote: React.FC = () => {
             console.log("Nie można dodać pustej notatki");
             return;
         }
-        mutation.mutate({ content: note });
+        // Dodaj kategorię do notatki, jeśli została podana
+        const noteData: NoteInput = { 
+            content: note
+        };
+        
+        if (category) {
+            noteData.category = category;
+        }
+        
+        mutation.mutate(noteData);
     };
 
     return (

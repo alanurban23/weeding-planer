@@ -3,6 +3,7 @@ export interface Note {
     id: string;
     content: string;
     created_at: string;
+    category?: string; // Dodajemy opcjonalne pole kategorii
 }
 
 export const getNotes = async (): Promise<Note[]> => {
@@ -20,6 +21,7 @@ export const getNotes = async (): Promise<Note[]> => {
 
 export interface NoteInput {
     content: string;
+    category?: string; // Dodajemy opcjonalne pole kategorii
 }
 
 export const addNote = async (note: NoteInput) => {

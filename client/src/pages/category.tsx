@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useLocation } from 'wouter';
 import TaskForm, { EditingTask } from '@/components/task-form';
+import CategoryNote from '@/components/CategoryNote';
+import { NotesSection } from '@/components/notes-section';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -214,6 +216,18 @@ export default function CategoryPage() {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {/* Komponent do dodawania notatek w kategorii */}
+          <CategoryNote 
+            categoryName={categoryName} 
+            onCreateFromNote={handleCreateFromNote} 
+          />
+          
+          {/* Komponent wyświetlający notatki dla tej kategorii */}
+          <NotesSection 
+            onCreateFromNote={handleCreateFromNote}
+            category={categoryName}
+          />
+          
           <TaskList 
             groupedTasks={groupedTasks}
             isLoading={isLoading}

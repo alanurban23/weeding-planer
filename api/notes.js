@@ -8,13 +8,21 @@ const supabase = createClient(
 );
 
 // Funkcje do bezpośredniej pracy z notatkami
-export async function getNotes() {
+export async function getNotes(category = null) {
   try {
-    console.log('Pobieranie notatek bezpośrednio z Supabase');
-    const { data, error } = await supabase
+    console.log('Pobieranie notatek bezpośrednio z Supabase', category ? `dla kategorii: ${category}` : '');
+    
+    let query = supabase
       .from('notes')
       .select('*')
       .order('created_at', { ascending: false });
+    
+    // Jeśli podano kategorię, filtruj po niej
+    if (category) {
+      query = query.eq('category', category);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       console.error('Błąd pobierania notatek:', error);
@@ -78,8 +86,14 @@ export async function addNote(noteData) {
     // Tworzymy nowy obiekt tylko z polami, które chcemy zapisać
     const newNote = {
       content: safeNoteData.content,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      title: 'Notatka' // Dodajemy domyślny tytuł, który jest wymagany przez schemat
     };
+    
+    // Dodaj kategorię, jeśli została podana
+    if (safeNoteData.category) {
+      newNote.category = safeNoteData.category;
+    }
     
     console.log('Przygotowane dane notatki (bez id):', JSON.stringify(newNote));
     
@@ -174,7 +188,9 @@ export default async function handler(req, res) {
   
   try {
     if (req.method === 'GET') {
-      const notes = await getNotes();
+      // Sprawdź, czy mamy parametr kategorii
+      const category = req.query.category;
+      const notes = await getNotes(category);
       return res.status(200).json(notes);
     } 
     else if (req.method === 'POST') {
@@ -195,8 +211,14 @@ export default async function handler(req, res) {
         // Tworzymy nowy obiekt tylko z polami, które chcemy zapisać
         const newNote = {
           content: safeData.content,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          title: 'Notatka' // Dodajemy domyślny tytuł, który jest wymagany przez schemat
         };
+        
+        // Dodaj kategorię, jeśli została podana
+        if (safeData.category) {
+          newNote.category = safeData.category;
+        }
         
         console.log('Przygotowane dane notatki (bez id):', JSON.stringify(newNote));
         
