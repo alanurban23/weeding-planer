@@ -20,6 +20,12 @@ export async function getNotes(category = null) {
     // Jeśli podano kategorię, filtruj po niej
     if (category) {
       query = query.eq('category', category);
+    } else if (category === null) {
+      // Jeśli nie podano kategorii, pobierz wszystkie notatki
+      // Nie stosujemy dodatkowego filtrowania
+    } else if (category === '') {
+      // Jeśli podano pustą kategorię, pobierz tylko notatki bez kategorii
+      query = query.is('category', null);
     }
     
     const { data, error } = await query;
@@ -190,7 +196,12 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // Sprawdź, czy mamy parametr kategorii
       const category = req.query.category;
-      const notes = await getNotes(category);
+      
+      // Jeśli category jest zdefiniowane, ale jest pustym stringiem, przekaż pusty string
+      // aby pobrać tylko notatki bez kategorii
+      const categoryParam = category === '' ? '' : category;
+      
+      const notes = await getNotes(categoryParam);
       return res.status(200).json(notes);
     } 
     else if (req.method === 'POST') {

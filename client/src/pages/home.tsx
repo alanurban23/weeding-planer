@@ -312,7 +312,7 @@ export default function Home() {
         <div className="px-4 py-6 sm:px-0">
           <div className="grid grid-cols-1 gap-6">
             {/* Sekcja notatek */}
-            <NotesSection onCreateFromNote={handleCreateFromNote} />
+            <NotesSection onCreateFromNote={handleCreateFromNote} onlyWithoutCategory={true} />
             
             {/* Zadania nadchodzące i po terminie */}
             <Card className="border-t-4 border-t-primary">

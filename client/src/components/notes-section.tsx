@@ -11,9 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 interface NotesSectionProps {
   onCreateFromNote: (content: string, category: string) => void;
   category?: string; 
+  onlyWithoutCategory?: boolean;
 }
 
-export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, category }) => {
+export const NotesSection: React.FC<NotesSectionProps> = ({ 
+  onCreateFromNote, 
+  category,
+  onlyWithoutCategory = false
+}) => {
   const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editedContent, setEditedContent] = useState("");
@@ -21,8 +26,9 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, ca
   const { toast } = useToast();
 
   const { data: notes = [], isLoading, refetch } = useQuery<Note[]>({
-    queryKey: ["/api/notes", category], 
+    queryKey: ["/api/notes", category, onlyWithoutCategory], 
     queryFn: async () => {
+      // Jeśli podano kategorię, pobierz notatki dla tej kategorii
       if (category) {
         const response = await fetch(`/api/notes?category=${encodeURIComponent(category)}`);
         if (!response.ok) {
@@ -30,13 +36,18 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, ca
         }
         return response.json();
       }
+      // Jeśli chcemy tylko notatki bez kategorii
+      else if (onlyWithoutCategory) {
+        return getNotes(true);
+      }
+      // W przeciwnym razie pobierz wszystkie notatki
       return getNotes();
     }
   });
 
   useEffect(() => {
     refetch();
-  }, [category, refetch]);
+  }, [category, onlyWithoutCategory, refetch]);
 
   const filteredNotes = notes.filter((note: Note) => note.content && note.content.trim() !== '');
 
@@ -119,7 +130,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, ca
     <div className="bg-white rounded-lg shadow mb-8">
       <div className="p-4 border-b flex justify-between items-center">
         <h2 className="text-lg font-medium">
-          {category ? `Notatki w kategorii: ${category}` : "Notatki"}
+          {category ? `Notatki w kategorii: ${category}` : onlyWithoutCategory ? "Notatki bez kategorii" : "Notatki"}
         </h2>
         <Button 
           variant="ghost" 
@@ -133,7 +144,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, ca
 
       {showAddNoteForm && (
         <div className="p-4 border-b">
-          <AddNote category={category} />
+          <AddNote category={category} onlyWithoutCategory={onlyWithoutCategory} />
           <Button
             variant="outline"
             onClick={() => setShowAddNoteForm(false)}
@@ -149,7 +160,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ onCreateFromNote, ca
           <div className="text-center py-4 text-gray-500">Ładowanie notatek...</div>
         ) : filteredNotes.length === 0 ? (
           <div className="text-center py-4 text-gray-500">
-            {category ? `Brak notatek w kategorii ${category}` : "Brak notatek"}
+            {category ? `Brak notatek w kategorii ${category}` : onlyWithoutCategory ? "Brak notatek bez kategorii" : "Brak notatek"}
           </div>
         ) : (
           <ul className="space-y-2">

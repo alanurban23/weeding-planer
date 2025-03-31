@@ -6,8 +6,11 @@ export interface Note {
     category?: string; // Dodajemy opcjonalne pole kategorii
 }
 
-export const getNotes = async (): Promise<Note[]> => {
-    const response = await fetch('/api/notes', {
+export const getNotes = async (onlyWithoutCategory = false): Promise<Note[]> => {
+    // Jeśli chcemy pobrać tylko notatki bez kategorii, dodajemy parametr category=''
+    const url = onlyWithoutCategory ? '/api/notes?category=' : '/api/notes';
+    
+    const response = await fetch(url, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',

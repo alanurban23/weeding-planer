@@ -7,9 +7,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface AddNoteProps {
     category?: string;
+    onlyWithoutCategory?: boolean;
 }
 
-const AddNote: React.FC<AddNoteProps> = ({ category }) => {
+const AddNote: React.FC<AddNoteProps> = ({ category, onlyWithoutCategory = false }) => {
     const [note, setNote] = useState('');
     const queryClient = useQueryClient();
     const { toast } = useToast();
@@ -19,10 +20,17 @@ const AddNote: React.FC<AddNoteProps> = ({ category }) => {
         onSuccess: () => {
             // Odświeżenie listy notatek po dodaniu nowej
             queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
+            
             // Jeśli podano kategorię, odśwież również listę notatek dla tej kategorii
             if (category) {
                 queryClient.invalidateQueries({ queryKey: ['/api/notes', category] });
             }
+            
+            // Jeśli pokazujemy tylko notatki bez kategorii, odśwież tę listę
+            if (onlyWithoutCategory) {
+                queryClient.invalidateQueries({ queryKey: ['/api/notes', null, true] });
+            }
+            
             // Resetowanie formularza
             setNote('');
             toast({
@@ -48,12 +56,14 @@ const AddNote: React.FC<AddNoteProps> = ({ category }) => {
             console.log("Nie można dodać pustej notatki");
             return;
         }
-        // Dodaj kategorię do notatki, jeśli została podana
+        
+        // Przygotuj dane notatki
         const noteData: NoteInput = { 
             content: note
         };
         
-        if (category) {
+        // Dodaj kategorię do notatki tylko jeśli została podana i nie jesteśmy w trybie "tylko bez kategorii"
+        if (category && !onlyWithoutCategory) {
             noteData.category = category;
         }
         
