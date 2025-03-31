@@ -65,10 +65,10 @@ async function checkSupabaseConnection() {
   console.log('\nSprawdzanie połączenia z Supabase...');
   
   const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_API_KEY;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
-    console.error('Błąd: Brak zmiennych środowiskowych SUPABASE_URL lub SUPABASE_API_KEY');
+    console.error('Błąd: Brak zmiennych środowiskowych SUPABASE_URL lub SUPABASE_ANON_KEY');
     return false;
   }
   
@@ -93,7 +93,7 @@ async function checkSupabaseConnection() {
     
     console.log('✅ Połączenie z Supabase działa!');
     
-    // Pobierz dane z tabeli tasks
+    // Pobierz dane z tabeli tasks i sprawdź poprawność dat
     const { data: tasks, error: tasksError } = await supabase
       .from('tasks')
       .select('*')
@@ -103,10 +103,26 @@ async function checkSupabaseConnection() {
       console.error('   Błąd podczas pobierania zadań:', tasksError);
     } else {
       console.log(`   Liczba zadań w tabeli tasks: ${tasks.length}`);
-      if (tasks.length > 0) {
+      
+      // Sprawdź poprawność dat w rekordach
+      const invalidTasks = tasks.filter(task => {
+        const date = new Date(task.created_at);
+        return isNaN(date.getTime());
+      });
+      
+      if (invalidTasks.length > 0) {
+        console.error(`   ⚠️ Znaleziono ${invalidTasks.length} nieprawidłowych dat created_at:`);
+        invalidTasks.forEach((task, index) => {
+          console.log(`   ${index + 1}. ID: ${task.id}`);
+          console.log(`      created_at: ${task.created_at}`);
+          console.log(`      Tytuł: ${task.title}`);
+        });
+      } else if (tasks.length > 0) {
         console.log('   Przykładowe zadania:');
         tasks.forEach((task: any) => {
+          const date = new Date(task.created_at);
           console.log(`   - ${task.title} (${task.category})`);
+          console.log(`     created_at: ${date.toISOString()} (poprawny format)`);
         });
       }
     }
@@ -122,7 +138,7 @@ async function checkSupabaseConnection() {
 async function checkConnections() {
   console.log('=== Sprawdzanie połączeń z bazami danych ===\n');
   
-  const pgStatus = await checkPostgresConnection();
+  const pgStatus = process.env.DATABASE_URL ? await checkPostgresConnection() : false;
   const supabaseStatus = await checkSupabaseConnection();
   
   console.log('\n=== Podsumowanie ===');
