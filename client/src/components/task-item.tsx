@@ -23,7 +23,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   
   // Determine if task is overdue
-  const isOverdue = task.dueDate ? isDateOverdue(new Date(task.dueDate)) : false;
+  const isOverdue = task.dueDate && task.dueDate !== '' ? isDateOverdue(new Date(task.dueDate)) : false;
   
   // Determine border color based on task status
   const getBorderColor = () => {
@@ -43,7 +43,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   const getDateBadgeVariant = () => {
     if (task.completed) return 'default';
     if (isOverdue) return 'destructive';
-    if (task.dueDate && isDateToday(new Date(task.dueDate))) return 'secondary';
+    if (task.dueDate && task.dueDate !== '' && isDateToday(new Date(task.dueDate))) return 'secondary';
     return 'outline';
   };
 
@@ -91,7 +91,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                     {task.category}
                   </Badge>
                   
-                  {task.dueDate && (
+                  {task.dueDate && task.dueDate !== '' && (
                     <Badge variant={getDateBadgeVariant()} className="font-normal text-xs">
                       {formatDate(new Date(task.dueDate))}
                     </Badge>
@@ -184,7 +184,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
               
               {/* Status and date information */}
               <div className="mt-2 flex flex-wrap text-xs text-gray-500 gap-2">
-                {task.completed && (
+                {task.completed && task.createdAt && (
                   <Badge variant="default" className="font-normal text-xs">
                     Wykonano {formatDate(new Date(task.createdAt))}
                   </Badge>
@@ -194,7 +194,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                     Po terminie
                   </Badge>
                 )}
-                {task.dueDate && isDateToday(new Date(task.dueDate)) && !task.completed && (
+                {task.dueDate && task.dueDate !== '' && isDateToday(new Date(task.dueDate)) && !task.completed && (
                   <Badge variant="secondary" className="font-normal text-xs">
                     Dzisiaj
                   </Badge>
