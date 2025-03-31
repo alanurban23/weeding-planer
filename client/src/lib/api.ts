@@ -33,7 +33,31 @@ export const addNote = async (note: NoteInput) => {
         body: JSON.stringify(note),
     });
     if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('Błąd podczas dodawania notatki');
+    }
+    return response.json();
+};
+
+export const updateNote = async (id: string, note: NoteInput) => {
+    const response = await fetch(`/api/notes?id=${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(note),
+    });
+    if (!response.ok) {
+        throw new Error('Błąd podczas aktualizacji notatki');
+    }
+    return response.json();
+};
+
+export const deleteNote = async (id: string) => {
+    const response = await fetch(`/api/notes?id=${id}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        throw new Error('Błąd podczas usuwania notatki');
     }
     return response.json();
 };
