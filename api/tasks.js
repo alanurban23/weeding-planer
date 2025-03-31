@@ -25,6 +25,36 @@ const getTaskById = async (id) => {
 
 export default async (req, res) => {
   try {
+    // Sprawdź, czy URL zawiera /toggle na końcu
+    if (req.url.endsWith('/toggle')) {
+      // Obsługa przełączania stanu ukończenia zadania
+      const taskId = req.url.split('/').slice(-2)[0]; // Pobierz ID zadania z URL
+      
+      // Sprawdź, czy zadanie istnieje
+      const { data: existingTask, error: findError } = await getTaskById(taskId);
+      
+      if (findError || !existingTask) {
+        return res.status(404).json({ message: 'Zadanie nie znalezione' });
+      }
+      
+      // Przełącz stan ukończenia zadania
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ completed: !existingTask.completed })
+        .eq('id', taskId)
+        .select();
+      
+      if (error) {
+        return res.status(500).json({ error: 'Błąd aktualizacji zadania', details: error.message });
+      }
+      
+      if (!data || data.length === 0) {
+        return res.status(404).json({ message: 'Zadanie nie znalezione' });
+      }
+      
+      return res.status(200).json(formatTask(data[0]));
+    }
+    
     // Obsługa różnych metod HTTP
     if (req.method === 'GET') {
       // Pobieranie zadań
