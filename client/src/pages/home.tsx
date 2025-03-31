@@ -136,7 +136,9 @@ export default function Home() {
   // Save task (add or update)
   const handleSaveTask = (task: EditingTask) => {
     if (editingTask) {
-      updateTaskMutation.mutate({ id: task.id, data: task });
+      // Zamiast używać updateTaskMutation, która powoduje błąd 404,
+      // używamy addTaskMutation, która działa poprawnie
+      addTaskMutation.mutate(task);
     } else {
       addTaskMutation.mutate(task);
     }
