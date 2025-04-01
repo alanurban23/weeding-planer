@@ -1,28 +1,39 @@
 import React from 'react';
 import { Task } from '@shared/schema';
 import TaskItem from './task-item';
-import { Plus } from './icons';
-import { useLocation } from 'wouter';
+import { Plus, Folder } from './icons';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+
+interface Category {
+  id: number | string;
+  name: string;
+  parent_id?: number | string | null;
+}
 
 interface TaskListProps {
   groupedTasks: Record<string, Task[]>;
   isLoading: boolean;
+  subcategories?: Category[];
   onToggleTaskCompletion: (id: string) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: () => void;
-  onCreateFromNote?: (note: string, category: string) => void;
+  onCreateFromNote?: (note: string, category: string | number) => void;
 }
 
 const TaskList: React.FC<TaskListProps> = ({
   groupedTasks,
   isLoading,
+  subcategories = [],
   onToggleTaskCompletion,
   onEditTask,
   onDeleteTask,
   onAddTask,
   onCreateFromNote,
 }) => {
+  const navigate = useNavigate();
+
   // If loading, show skeleton loader
   if (isLoading) {
     return (
@@ -44,71 +55,85 @@ const TaskList: React.FC<TaskListProps> = ({
     );
   }
 
-  // If no tasks, show empty state
-  if (Object.keys(groupedTasks).length === 0) {
+  // If no tasks and no subcategories, show empty state
+  if (Object.keys(groupedTasks).length === 0 && subcategories.length === 0) {
     return (
-      <div className="text-center py-12">
-        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-          <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-        </svg>
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Brak zadań</h3>
-        <p className="mt-1 text-sm text-gray-500">Zacznij dodawać zadania do swojego planu weselnego.</p>
-        <div className="mt-6">
-          <button
-            onClick={onAddTask}
-            type="button"
-            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            <Plus className="-ml-1 mr-2 h-5 w-5" />
-            Dodaj zadanie
-          </button>
-        </div>
+      <div className="bg-white shadow overflow-hidden rounded-md p-6 text-center">
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Brak zadań</h3>
+        <p className="text-gray-500 mb-4">Nie znaleziono żadnych zadań ani podkategorii w tej kategorii.</p>
+        <button
+          onClick={onAddTask}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Dodaj zadanie
+        </button>
       </div>
     );
   }
 
-  // Display tasks grouped by category
   return (
     <div className="space-y-8">
-      {Object.entries(groupedTasks)
-        // Sortujemy kategorie alfabetycznie, ponieważ funkcja sortCategoriesByRomanNumeral została zmieniona
-        .sort(([categoryA], [categoryB]) => categoryA.localeCompare(categoryB))
-        .map(([category, tasks]) => (
-          <div key={category}>
-            <h2 
-              className="text-lg font-medium text-gray-900 mb-4 hover:text-primary cursor-pointer flex items-center"
-              onClick={() => window.location.href = `/kategoria/${encodeURIComponent(category)}`}
-            >
-              {category}
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-4 w-4 ml-2" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
+      {/* Display subcategories first */}
+      {subcategories.length > 0 && (
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Podkategorie</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {subcategories.map((category) => (
+              <div
+                key={`category-${category.id}`}
+                className="bg-blue-50 border border-blue-200 rounded-md p-4 hover:bg-blue-100 transition-colors cursor-pointer flex items-center"
+                onClick={() => navigate(`/category/${category.id}`)}
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M9 5l7 7-7 7" 
-                />
-              </svg>
-            </h2>
-            <ul className="space-y-3">
-              {tasks.map(task => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  onToggleCompletion={onToggleTaskCompletion}
-                  onEdit={onEditTask}
-                  onDelete={onDeleteTask}
-                  onCreateFromNote={onCreateFromNote}
-                />
-              ))}
-            </ul>
+                <div className="bg-blue-100 rounded-full p-2 mr-3">
+                  <Folder className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-blue-800">{category.name}</h4>
+                  <p className="text-sm text-blue-600">Kliknij, aby przejść do tej kategorii</p>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* Display tasks grouped by status */}
+      {Object.keys(groupedTasks).length > 0 && (
+        <div>
+          {Object.entries(groupedTasks).map(([status, tasks]) => (
+            <div key={status} className="mb-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {status === 'completed' ? 'Zakończone' : status === 'in_progress' ? 'W trakcie' : 'Do zrobienia'}
+              </h3>
+              <div className="space-y-3">
+                {tasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    onToggleCompletion={onToggleTaskCompletion}
+                    onEdit={onEditTask}
+                    onDelete={onDeleteTask}
+                    onCreateFromNote={onCreateFromNote}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add task button at the bottom */}
+      <div className="flex justify-center">
+        <Button 
+          onClick={onAddTask}
+          className="flex items-center"
+          variant="outline"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Dodaj zadanie
+        </Button>
+      </div>
     </div>
   );
 };

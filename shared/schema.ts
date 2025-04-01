@@ -60,7 +60,8 @@ export interface Task {
   title: string;
   notes: string[];
   completed: boolean;
-  category: string;
+  category?: string;
+  id_category?: number;
   dueDate: Date | string | null;
   createdAt: Date;
 }

@@ -3,7 +3,7 @@ export interface Note {
     id: string;
     content: string;
     created_at: string;
-    category?: string; // Dodajemy opcjonalne pole kategorii
+    category?: string | number | null; // Kategoria może być stringiem, liczbą lub null
 }
 
 export const getNotes = async (onlyWithoutCategory = false): Promise<Note[]> => {
@@ -24,7 +24,8 @@ export const getNotes = async (onlyWithoutCategory = false): Promise<Note[]> => 
 
 export interface NoteInput {
     content: string;
-    category?: string; // Dodajemy opcjonalne pole kategorii
+    category?: string | number | null; // Kategoria może być stringiem, liczbą lub null
+    id_category?: string | number | null; // ID kategorii może być stringiem, liczbą lub null
 }
 
 export const addNote = async (note: NoteInput) => {

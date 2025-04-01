@@ -10,7 +10,11 @@ const supabase = createClient(
 const formatTask = (task) => ({
   ...task,
   dueDate: task.due_date,
-  notes: Array.isArray(task.notes) ? task.notes : []
+  notes: Array.isArray(task.notes) ? task.notes : [],
+  // Jeśli mamy id_category, użyj go jako głównego identyfikatora kategorii
+  // Zachowaj również pole category dla kompatybilności wstecznej
+  category: task.category || (task.id_category !== undefined ? String(task.id_category) : null),
+  id_category: task.id_category
 });
 
 const getTaskById = async (id) => {
@@ -76,7 +80,7 @@ export default async (req, res) => {
     } 
     else if (req.method === 'POST') {
       // Dodawanie nowego zadania
-      const { id, title, category, notes, completed, dueDate } = req.body;
+      const { id, title, category, id_category, notes, completed, dueDate } = req.body;
       
       if (!title) {
         return res.status(400).json({ error: 'Brak wymaganego tytułu zadania' });
@@ -85,12 +89,81 @@ export default async (req, res) => {
       // Przygotuj dane zadania bez ID - pozwól bazie danych wygenerować ID
       const newTask = {
         title,
-        category,
         notes: notes || [],
         completed: completed || false,
         due_date: dueDate || null,
         created_at: new Date().toISOString()
       };
+      
+      // Obsługa kategorii - priorytetowo używamy id_category
+      if (id_category !== undefined) {
+        // Jeśli id_category jest stringiem, spróbuj przekonwertować na liczbę
+        if (typeof id_category === 'string' && id_category !== '') {
+          try {
+            newTask.id_category = parseInt(id_category, 10);
+            console.log(`Dodawanie zadania z id_category (przekonwertowaną na liczbę): ${newTask.id_category}`);
+          } catch (e) {
+            // Jeśli konwersja się nie powiedzie, użyj oryginalnej wartości
+            newTask.id_category = id_category;
+            console.log(`Dodawanie zadania z id_category (oryginalna wartość): ${newTask.id_category}`);
+          }
+        } else {
+          // Jeśli to już liczba lub null, użyj bezpośrednio
+          newTask.id_category = id_category;
+          console.log(`Dodawanie zadania z id_category: ${newTask.id_category}`);
+        }
+      } else if (category !== undefined) {
+        // Dla kompatybilności wstecznej - jeśli mamy tylko pole category, spróbujmy znaleźć odpowiednie id_category
+        console.log(`Próba znalezienia id_category dla kategorii: ${category}`);
+        
+        // Zachowaj również oryginalną nazwę kategorii dla kompatybilności
+        newTask.category = category;
+        
+        try {
+          // Sprawdź, czy kategoria jest liczbą
+          if (typeof category === 'number') {
+            // Jeśli to liczba, użyj jej jako id_category
+            newTask.id_category = category;
+            console.log(`Użycie liczby jako id_category: ${newTask.id_category}`);
+          } else if (typeof category === 'string' && !isNaN(Number(category))) {
+            // Jeśli to string, który można przekonwertować na liczbę, użyj go jako id_category
+            newTask.id_category = Number(category);
+            console.log(`Konwersja stringa na id_category: ${newTask.id_category}`);
+          } else if (typeof category === 'string' && category.trim() !== '') {
+            // Jeśli to string, który nie jest liczbą, spróbuj znaleźć kategorię w bazie danych
+            const { data: categoryData, error: categoryError } = await supabase
+              .from('categories')
+              .select('id')
+              .eq('name', category)
+              .limit(1);
+              
+            if (categoryError) {
+              console.error('Błąd podczas wyszukiwania kategorii:', categoryError);
+            } else if (categoryData && categoryData.length > 0) {
+              // Jeśli znaleziono kategorię, użyj jej id
+              newTask.id_category = categoryData[0].id;
+              console.log(`Znaleziono id_category ${newTask.id_category} dla kategorii "${category}"`);
+            } else {
+              // Jeśli nie znaleziono kategorii, utwórz nową
+              console.log(`Nie znaleziono kategorii "${category}". Tworzenie nowej...`);
+              const { data: newCategory, error: newCategoryError } = await supabase
+                .from('categories')
+                .insert({ name: category })
+                .select();
+                
+              if (newCategoryError) {
+                console.error('Błąd podczas tworzenia nowej kategorii:', newCategoryError);
+              } else if (newCategory && newCategory.length > 0) {
+                // Jeśli utworzono nową kategorię, użyj jej id
+                newTask.id_category = newCategory[0].id;
+                console.log(`Utworzono nową kategorię z id ${newTask.id_category}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Błąd podczas przetwarzania kategorii:', e);
+        }
+      }
       
       const { data, error } = await supabase
         .from('tasks')
@@ -123,7 +196,7 @@ export default async (req, res) => {
       const updateData = {};
       
       // Pola, które mogą być aktualizowane
-      const allowedFields = ['title', 'category', 'notes', 'completed'];
+      const allowedFields = ['title', 'notes', 'completed'];
       
       // Dodaj pola z req.body do updateData
       for (const field of allowedFields) {
@@ -135,6 +208,76 @@ export default async (req, res) => {
       // Specjalne traktowanie dla dueDate -> due_date
       if (req.body.dueDate !== undefined) {
         updateData.due_date = req.body.dueDate || null;
+      }
+      
+      // Obsługa kategorii - priorytetowo używamy id_category
+      if (req.body.id_category !== undefined) {
+        // Jeśli id_category jest stringiem, spróbuj przekonwertować na liczbę
+        if (typeof req.body.id_category === 'string' && req.body.id_category !== '') {
+          try {
+            updateData.id_category = parseInt(req.body.id_category, 10);
+            console.log(`Aktualizacja zadania z id_category (przekonwertowaną na liczbę): ${updateData.id_category}`);
+          } catch (e) {
+            // Jeśli konwersja się nie powiedzie, użyj oryginalnej wartości
+            updateData.id_category = req.body.id_category;
+            console.log(`Aktualizacja zadania z id_category (oryginalna wartość): ${updateData.id_category}`);
+          }
+        } else {
+          // Jeśli to już liczba lub null, użyj bezpośrednio
+          updateData.id_category = req.body.id_category;
+          console.log(`Aktualizacja zadania z id_category: ${updateData.id_category}`);
+        }
+      } else if (req.body.category !== undefined) {
+        // Dla kompatybilności wstecznej - jeśli mamy tylko pole category, spróbujmy znaleźć odpowiednie id_category
+        console.log(`Próba znalezienia id_category dla kategorii: ${req.body.category}`);
+        
+        // Zachowaj również oryginalną nazwę kategorii dla kompatybilności
+        updateData.category = req.body.category;
+        
+        try {
+          // Sprawdź, czy kategoria jest liczbą
+          if (typeof req.body.category === 'number') {
+            // Jeśli to liczba, użyj jej jako id_category
+            updateData.id_category = req.body.category;
+            console.log(`Użycie liczby jako id_category: ${updateData.id_category}`);
+          } else if (typeof req.body.category === 'string' && !isNaN(Number(req.body.category))) {
+            // Jeśli to string, który można przekonwertować na liczbę, użyj go jako id_category
+            updateData.id_category = Number(req.body.category);
+            console.log(`Konwersja stringa na id_category: ${updateData.id_category}`);
+          } else if (typeof req.body.category === 'string' && req.body.category.trim() !== '') {
+            // Jeśli to string, który nie jest liczbą, spróbuj znaleźć kategorię w bazie danych
+            const { data: categoryData, error: categoryError } = await supabase
+              .from('categories')
+              .select('id')
+              .eq('name', req.body.category)
+              .limit(1);
+              
+            if (categoryError) {
+              console.error('Błąd podczas wyszukiwania kategorii:', categoryError);
+            } else if (categoryData && categoryData.length > 0) {
+              // Jeśli znaleziono kategorię, użyj jej id
+              updateData.id_category = categoryData[0].id;
+              console.log(`Znaleziono id_category ${updateData.id_category} dla kategorii "${req.body.category}"`);
+            } else {
+              // Jeśli nie znaleziono kategorii, utwórz nową
+              console.log(`Nie znaleziono kategorii "${req.body.category}". Tworzenie nowej...`);
+              const { data: newCategory, error: newCategoryError } = await supabase
+                .from('categories')
+                .insert({ name: req.body.category })
+                .select();
+                
+              if (newCategoryError) {
+                console.error('Błąd podczas tworzenia nowej kategorii:', newCategoryError);
+              } else if (newCategory && newCategory.length > 0) {
+                // Jeśli utworzono nową kategorię, użyj jej id
+                updateData.id_category = newCategory[0].id;
+                console.log(`Utworzono nową kategorię z id ${updateData.id_category}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Błąd podczas przetwarzania kategorii:', e);
+        }
       }
       
       // Aktualizuj zadanie

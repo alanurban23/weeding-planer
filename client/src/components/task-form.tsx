@@ -18,19 +18,25 @@ import { formatDateForInput } from '@/lib/date-utils';
 export type EditingTask = {
   id: string;
   title: string;
-  category: string;
+  category?: string | number;
+  id_category?: number;
   notes: string[];
   completed: boolean;
   dueDate: string | Date | null;
 };
+
+interface Category {
+  id: string | number;
+  name: string;
+}
 
 interface TaskFormProps {
   show: boolean;
   onClose: () => void;
   onSave: (task: EditingTask) => void;
   task: Task | null;
-  categories: string[];
-  onCreateFromNote?: (note: string, category: string) => void;
+  categories: Array<Category>;
+  onCreateFromNote?: (note: string, category: string | number) => void;
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -45,61 +51,99 @@ const TaskForm: React.FC<TaskFormProps> = ({
     id: '',
     title: '',
     category: '',
+    id_category: undefined,
     notes: [],
     completed: false,
     dueDate: null
   });
-  
-  const [currentNote, setCurrentNote] = useState('');
-  const [showNoteForm, setShowNoteForm] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
+  const [newNote, setNewNote] = useState('');
 
-  // Reset form when task changes
+  // Konwertuje kategorie na mapę, gdzie kluczem jest ID, a wartością nazwa
+  const categoryMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach(category => {
+      map.set(category.id.toString(), category.name);
+    });
+    return map;
+  }, [categories]);
+
+  // Konwertuje kategorie na mapę, gdzie kluczem jest nazwa, a wartością ID
+  const categoryNameToIdMap = React.useMemo(() => {
+    const map = new Map<string, string | number>();
+    categories.forEach(category => {
+      map.set(category.name, category.id);
+    });
+    return map;
+  }, [categories]);
+
+  // Funkcja pomocnicza do znajdowania ID kategorii na podstawie nazwy
+  const getCategoryIdByName = (name: string): string | number => {
+    return categoryNameToIdMap.get(name) || name;
+  };
+
+  // Funkcja pomocnicza do znajdowania nazwy kategorii na podstawie ID
+  const getCategoryNameById = (id?: string | number): string => {
+    if (id === undefined) return '';
+    return categoryMap.get(id.toString()) || id.toString();
+  };
+
   useEffect(() => {
     if (task) {
+      // Konwertuj ID kategorii na nazwę, jeśli to możliwe
+      const categoryName = getCategoryNameById(task.category);
+      
       setEditingTask({
         id: task.id,
         title: task.title,
-        category: task.category,
-        notes: [...task.notes],
+        category: task.category || '',
+        id_category: task.id_category,
+        notes: task.notes || [],
         completed: task.completed,
-        dueDate: task.dueDate 
+        dueDate: task.dueDate ? new Date(task.dueDate) : null
       });
-      setIsCustomCategory(false);
     } else {
       setEditingTask({
-        id: generateId(),
+        id: '',
         title: '',
-        category: categories.length > 0 ? categories[0] : '',
+        category: '',
+        id_category: undefined,
         notes: [],
         completed: false,
         dueDate: null
       });
     }
-    setCurrentNote('');
-    setShowNoteForm(false);
+    setIsCustomCategory(false);
     setNewCategory('');
-  }, [task, categories, show]);
+  }, [task]);
 
-  // Generate a unique ID for new tasks
-  const generateId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-  };
-
-  // Add a new note
-  const handleAddNote = () => {
-    if (currentNote.trim()) {
-      setEditingTask(prev => ({
-        ...prev,
-        notes: [...prev.notes, currentNote.trim()]
+  const handleCategoryChange = (value: string) => {
+    if (value === 'new') {
+      setIsCustomCategory(true);
+      setEditingTask(prev => ({ ...prev, category: '', id_category: undefined }));
+    } else {
+      setIsCustomCategory(false);
+      // Zapisujemy ID kategorii, nie nazwę
+      const categoryId = getCategoryIdByName(value);
+      setEditingTask(prev => ({ 
+        ...prev, 
+        category: categoryId, 
+        id_category: typeof categoryId === 'number' ? categoryId : undefined 
       }));
-      setCurrentNote('');
-      setShowNoteForm(false);
     }
   };
 
-  // Remove a note
+  const handleAddNote = () => {
+    if (newNote.trim()) {
+      setEditingTask(prev => ({
+        ...prev,
+        notes: [...prev.notes, newNote.trim()]
+      }));
+      setNewNote('');
+    }
+  };
+
   const handleRemoveNote = (index: number) => {
     setEditingTask(prev => ({
       ...prev,
@@ -107,37 +151,26 @@ const TaskForm: React.FC<TaskFormProps> = ({
     }));
   };
 
-  // Handle category change
-  const handleCategoryChange = (value: string) => {
-    if (value === 'new') {
-      setIsCustomCategory(true);
-      setNewCategory('');
-    } else {
-      setIsCustomCategory(false);
-      setEditingTask(prev => ({
-        ...prev,
-        category: value
-      }));
+  const handleCreateFromNote = (note: string) => {
+    if (onCreateFromNote && note.trim()) {
+      // Używamy ID kategorii, nie nazwy
+      const categoryValue = editingTask.id_category !== undefined 
+        ? editingTask.id_category 
+        : (editingTask.category || '');
+      onCreateFromNote(note.trim(), categoryValue);
     }
   };
 
-  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Use new category if selected
-    const finalTask = {
+    // Jeśli użytkownik dodał nową kategorię, używamy jej nazwy
+    const finalCategory = isCustomCategory ? newCategory : editingTask.category;
+    
+    onSave({
       ...editingTask,
-      category: isCustomCategory ? newCategory : editingTask.category,
-    };
-    
-    // Validate required fields
-    if (!finalTask.title || (!finalTask.category && !isCustomCategory) || (isCustomCategory && !newCategory)) {
-      alert('Wypełnij wszystkie wymagane pola');
-      return;
-    }
-    
-    onSave(finalTask);
+      category: finalCategory
+    });
   };
 
   return (
@@ -166,16 +199,16 @@ const TaskForm: React.FC<TaskFormProps> = ({
               Kategoria *
             </Label>
             <Select
-              value={isCustomCategory ? 'new' : editingTask.category}
+              value={isCustomCategory ? 'new' : getCategoryNameById(editingTask.category)}
               onValueChange={handleCategoryChange}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Wybierz kategorię" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                {categories.map((category, index) => (
+                  <SelectItem key={index} value={category.name}>
+                    {category.name}
                   </SelectItem>
                 ))}
                 <SelectItem value="new">+ Dodaj nową kategorię</SelectItem>
@@ -205,128 +238,80 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <Input
               id="task-due-date"
               type="date"
-              value={editingTask.dueDate && editingTask.dueDate !== '' ? formatDateForInput(new Date(editingTask.dueDate)) : ''}
-              onChange={(e) => setEditingTask(prev => ({ 
-                ...prev, 
-                dueDate: e.target.value ? e.target.value : null
-              }))}
+              value={editingTask.dueDate ? formatDateForInput(editingTask.dueDate as Date) : ''}
+              onChange={(e) => {
+                const date = e.target.value ? new Date(e.target.value) : null;
+                setEditingTask(prev => ({ ...prev, dueDate: date }));
+              }}
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label className="text-sm font-medium text-gray-700">
-                Notatki
-              </Label>
-              {!showNoteForm && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowNoteForm(true)}
-                >
-                  <svg className="h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Dodaj notatkę
-                </Button>
-              )}
-            </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="task-completed"
+              checked={editingTask.completed}
+              onCheckedChange={(checked) => 
+                setEditingTask(prev => ({ ...prev, completed: checked === true }))
+              }
+            />
+            <Label htmlFor="task-completed" className="text-sm font-medium text-gray-700">
+              Zakończone
+            </Label>
+          </div>
 
-            {showNoteForm && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700">
+              Notatki
+            </Label>
+            <div className="space-y-2">
+              {editingTask.notes.map((note, index) => (
+                <div key={index} className="flex items-center">
+                  <div className="flex-1 bg-gray-50 p-2 rounded text-sm">{note}</div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveNote(index)}
+                    className="ml-2"
+                  >
+                    <span className="sr-only">Usuń notatkę</span>
+                    ×
+                  </Button>
+                </div>
+              ))}
               <div className="flex space-x-2">
                 <Input
-                  type="text"
-                  value={currentNote}
-                  onChange={(e) => setCurrentNote(e.target.value)}
-                  placeholder="Np. Zadzwonić i potwierdzić rezerwację"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Dodaj notatkę"
                   className="flex-1"
                 />
                 <Button
                   type="button"
+                  variant="outline"
                   onClick={handleAddNote}
-                  disabled={!currentNote.trim()}
+                  disabled={!newNote.trim()}
                 >
                   Dodaj
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setShowNoteForm(false);
-                    setCurrentNote('');
-                  }}
+                  onClick={() => handleCreateFromNote(newNote)}
+                  disabled={!newNote.trim() || !onCreateFromNote}
                 >
-                  Anuluj
+                  Utwórz zadanie
                 </Button>
               </div>
-            )}
-
-            <ul className="mt-2 space-y-2">
-              {editingTask.notes.map((note, index) => (
-                <li 
-                  key={index} 
-                  className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-md group"
-                >
-                  <span className="text-sm text-gray-700">{note}</span>
-                  <div className="flex space-x-2">
-                    {onCreateFromNote && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const category = isCustomCategory ? newCategory : editingTask.category;
-                          onCreateFromNote(note, category);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center"
-                        title="Przekształć na zadanie"
-                      >
-                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </button>
-                    )}
-                    <button 
-                      type="button"
-                      onClick={() => handleRemoveNote(index)}
-                      className="text-gray-400 hover:text-gray-500"
-                    >
-                      <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="task-completed" 
-              checked={editingTask.completed}
-              onCheckedChange={(checked) => 
-                setEditingTask(prev => ({ ...prev, completed: !!checked }))
-              }
-            />
-            <Label 
-              htmlFor="task-completed" 
-              className="text-sm text-gray-700"
-            >
-              Oznacz jako ukończone
-            </Label>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose}
-            >
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
               Anuluj
             </Button>
             <Button type="submit">
-              Zapisz
+              {task ? 'Zapisz zmiany' : 'Dodaj zadanie'}
             </Button>
           </div>
         </form>

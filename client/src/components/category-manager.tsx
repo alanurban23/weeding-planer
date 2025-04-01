@@ -23,25 +23,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Category {
-  id: string;
+  id: string | number;
   name: string;
+  parent_id?: string | number | null;
 }
 
 interface CategoryManagerProps {
   show: boolean;
   onClose: () => void;
-  existingCategories: string[];
+  existingCategories?: Array<Category>;
 }
 
 const CategoryManager: React.FC<CategoryManagerProps> = ({
   show,
   onClose,
-  existingCategories,
+  existingCategories = [],
 }) => {
   const { toast } = useToast();
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedParentId, setSelectedParentId] = useState<string | undefined>(undefined);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -61,12 +70,13 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
 
   // Dodawanie nowej kategorii
   const addCategoryMutation = useMutation({
-    mutationFn: (name: string) => 
-      apiRequest('/api/categories', 'POST', { name }),
+    mutationFn: (data: { name: string; parent_id?: string | number | null }) => 
+      apiRequest('/api/categories', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       setNewCategoryName('');
+      setSelectedParentId(undefined);
       refetch(); // Odświeżamy listę kategorii
       toast({
         title: "Kategoria dodana",
@@ -106,9 +116,10 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
     },
   });
 
-  // Dodawanie nowej kategorii
+  // Obsługa dodawania nowej kategorii
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!newCategoryName.trim()) {
       toast({
         title: "Błąd",
@@ -122,7 +133,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
     const categoryExists = categories.some(
       (cat: Category) => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase()
     ) || existingCategories.some(
-      (cat: string) => cat.toLowerCase() === newCategoryName.trim().toLowerCase()
+      (cat: Category) => cat.name.toLowerCase() === newCategoryName.trim().toLowerCase()
     );
     
     if (categoryExists) {
@@ -134,7 +145,17 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
       return;
     }
     
-    addCategoryMutation.mutate(newCategoryName.trim());
+    const categoryData: { name: string; parent_id?: string | number | null } = { 
+      name: newCategoryName.trim() 
+    };
+    
+    if (selectedParentId && selectedParentId !== "none") {
+      categoryData.parent_id = selectedParentId;
+    } else {
+      categoryData.parent_id = null;
+    }
+    
+    addCategoryMutation.mutate(categoryData);
   };
 
   // Usuwanie kategorii
@@ -151,6 +172,11 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
     }
   };
 
+  const cancelDeleteCategory = () => {
+    setShowDeleteDialog(false);
+    setCategoryToDelete(null);
+  };
+
   return (
     <>
       <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
@@ -160,8 +186,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
           </DialogHeader>
           
           <div className="py-4">
-            <form onSubmit={handleAddCategory} className="flex items-end gap-2 mb-6">
-              <div className="flex-1">
+            <form onSubmit={handleAddCategory} className="space-y-4 mb-6">
+              <div>
                 <Label htmlFor="new-category" className="text-sm font-medium text-gray-700">
                   Nowa kategoria
                 </Label>
@@ -170,11 +196,37 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="Nazwa nowej kategorii"
+                  className="mt-1"
                 />
               </div>
-              <Button type="submit" disabled={addCategoryMutation.isPending}>
-                Dodaj
-              </Button>
+              
+              <div>
+                <Label htmlFor="parent-category" className="text-sm font-medium text-gray-700">
+                  Kategoria nadrzędna (opcjonalnie)
+                </Label>
+                <Select 
+                  value={selectedParentId} 
+                  onValueChange={(value) => setSelectedParentId(value)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Wybierz kategorię nadrzędną" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Brak (kategoria główna)</SelectItem>
+                    {categories.map((category: Category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button type="submit" disabled={addCategoryMutation.isPending}>
+                  {addCategoryMutation.isPending ? 'Dodawanie...' : 'Dodaj kategorię'}
+                </Button>
+              </div>
             </form>
             
             <div className="space-y-2">
@@ -191,11 +243,18 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                       key={category.id} 
                       className="flex items-center justify-between p-2 border rounded-md"
                     >
-                      <span>{category.name}</span>
+                      <div className="flex flex-col">
+                        <span>{category.name}</span>
+                        {category.parent_id && (
+                          <span className="text-xs text-gray-500">
+                            Podkategoria: {categories.find(c => c.id.toString() === category.parent_id?.toString())?.name || 'Nieznana'}
+                          </span>
+                        )}
+                      </div>
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        onClick={() => handleDeleteCategory(category.id)}
+                        onClick={() => handleDeleteCategory(category.id.toString())}
                         disabled={deleteCategoryMutation.isPending}
                       >
                         <Trash className="h-4 w-4 text-red-500" />
@@ -215,18 +274,20 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
         </DialogContent>
       </Dialog>
       
-      {/* Dialog potwierdzenia usunięcia */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Potwierdzenie usunięcia</AlertDialogTitle>
+            <AlertDialogTitle>Czy na pewno chcesz usunąć tę kategorię?</AlertDialogTitle>
             <AlertDialogDescription>
-              Czy na pewno chcesz usunąć tę kategorię? Ta operacja może wpłynąć na zadania przypisane do tej kategorii.
+              Usunięcie kategorii nie spowoduje usunięcia zadań ani notatek przypisanych do tej kategorii,
+              ale stracą one przypisanie do kategorii.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCategoryToDelete(null)}>Anuluj</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteCategory}>Usuń</AlertDialogAction>
+            <AlertDialogCancel onClick={cancelDeleteCategory}>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteCategory} className="bg-red-600 hover:bg-red-700">
+              Usuń
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

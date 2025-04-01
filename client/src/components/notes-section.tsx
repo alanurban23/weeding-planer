@@ -4,19 +4,21 @@ import { Button } from "@/components/ui/button";
 import { X, Plus, Edit } from "@/components/icons";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 import AddNote from "./AddNote.tsx";
 import { getNotes, Note, deleteNote, updateNote } from "@/lib/api.ts";
-import { Textarea } from "@/components/ui/textarea";
 
 interface NotesSectionProps {
-  onCreateFromNote: (content: string, category: string) => void;
-  category?: string; 
+  onCreateFromNote: (content: string, category: string | number) => void;
+  category?: string | number; 
+  id_category?: string | number;
   onlyWithoutCategory?: boolean;
 }
 
 export const NotesSection: React.FC<NotesSectionProps> = ({ 
   onCreateFromNote, 
   category,
+  id_category,
   onlyWithoutCategory = false
 }) => {
   const [showAddNoteForm, setShowAddNoteForm] = useState(false);
@@ -25,16 +27,17 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Priorytetowo używamy id_category, jeśli jest dostępne
+  const categoryParam = id_category !== undefined ? id_category : category;
+
   const { data: notes = [], isLoading, refetch } = useQuery<Note[]>({
-    queryKey: ["/api/notes", category, onlyWithoutCategory], 
+    queryKey: ["/api/notes", categoryParam, onlyWithoutCategory], 
     queryFn: async () => {
       // Jeśli podano kategorię, pobierz notatki dla tej kategorii
-      if (category) {
-        const response = await fetch(`/api/notes?category=${encodeURIComponent(category)}`);
-        if (!response.ok) {
-          throw new Error('Błąd pobierania notatek dla kategorii');
-        }
-        return response.json();
+      if (categoryParam !== undefined) {
+        // Używamy id_category w URL, jeśli jest dostępne
+        const paramName = id_category !== undefined ? 'id_category' : 'category';
+        return apiRequest(`/api/notes?${paramName}=${encodeURIComponent(categoryParam.toString())}`);
       }
       // Jeśli chcemy tylko notatki bez kategorii
       else if (onlyWithoutCategory) {
@@ -42,12 +45,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
       }
       // W przeciwnym razie pobierz wszystkie notatki
       return getNotes();
-    }
+    },
+    staleTime: 0, // Always fetch fresh data
   });
 
   useEffect(() => {
     refetch();
-  }, [category, onlyWithoutCategory, refetch]);
+  }, [category, id_category, onlyWithoutCategory, refetch]);
 
   const filteredNotes = notes.filter((note: Note) => note.content && note.content.trim() !== '');
 
@@ -56,8 +60,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
     mutationFn: (id: string) => deleteNote(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      if (category) {
-        queryClient.invalidateQueries({ queryKey: ["/api/notes", category] });
+      if (categoryParam) {
+        queryClient.invalidateQueries({ queryKey: ["/api/notes", categoryParam] });
       }
       toast({
         title: "Sukces",
@@ -82,8 +86,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
       updateNote(id, { content, category: editingNote?.category }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/notes"] });
-      if (category) {
-        queryClient.invalidateQueries({ queryKey: ["/api/notes", category] });
+      if (categoryParam) {
+        queryClient.invalidateQueries({ queryKey: ["/api/notes", categoryParam] });
       }
       setEditingNote(null);
       toast({
@@ -122,15 +126,25 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
     setEditedContent("");
   };
 
-  const handleCreateTask = (content: string, noteCategory: string = category || "I. Ustalenia Ogólne") => {
-    onCreateFromNote(content, noteCategory);
+  const handleCreateTask = (content: string, noteCategory?: string | number | null) => {
+    // Użyj kategorii notatki, jeśli istnieje, w przeciwnym razie użyj bieżącej kategorii lub domyślnej
+    const taskCategory = noteCategory !== undefined && noteCategory !== null 
+      ? noteCategory 
+      : categoryParam || "I. Ustalenia Ogólne";
+    
+    // Konwertuj kategorię na string, jeśli to liczba
+    const categoryToUse = typeof taskCategory === 'number' 
+      ? taskCategory.toString() 
+      : taskCategory;
+    
+    onCreateFromNote(content, categoryToUse);
   };
 
   return (
     <div className="bg-white rounded-lg shadow mb-8">
       <div className="p-4 border-b flex justify-between items-center">
         <h2 className="text-lg font-medium">
-          {category ? `Notatki w kategorii: ${category}` : onlyWithoutCategory ? "Notatki bez kategorii" : "Notatki"}
+          {categoryParam ? `Notatki w kategorii: ${categoryParam}` : onlyWithoutCategory ? "Notatki bez kategorii" : "Notatki"}
         </h2>
         <Button 
           variant="ghost" 
@@ -144,7 +158,11 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
 
       {showAddNoteForm && (
         <div className="p-4 border-b">
-          <AddNote category={category} onlyWithoutCategory={onlyWithoutCategory} />
+          <AddNote 
+            id_category={id_category} 
+            category={categoryParam} 
+            onlyWithoutCategory={onlyWithoutCategory} 
+          />
           <Button
             variant="outline"
             onClick={() => setShowAddNoteForm(false)}
@@ -160,7 +178,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
           <div className="text-center py-4 text-gray-500">Ładowanie notatek...</div>
         ) : filteredNotes.length === 0 ? (
           <div className="text-center py-4 text-gray-500">
-            {category ? `Brak notatek w kategorii ${category}` : onlyWithoutCategory ? "Brak notatek bez kategorii" : "Brak notatek"}
+            {categoryParam ? `Brak notatek w kategorii ${categoryParam}` : onlyWithoutCategory ? "Brak notatek bez kategorii" : "Brak notatek"}
           </div>
         ) : (
           <ul className="space-y-2">
@@ -199,7 +217,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleCreateTask(note.content, note.category)}
+                        onClick={() => handleCreateTask(note.content, note.category || undefined)}
                         className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center transition-opacity"
                         title="Przekształć na zadanie"
                       >

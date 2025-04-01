@@ -137,37 +137,59 @@ export default function Home() {
   });
 
   // Wyodrębnianie unikalnych kategorii z zadań
-  const uniqueCategories = React.useMemo(() => {
+  const uniqueCategories = React.useMemo<Array<{ id: number; name: string }>>(() => {
     // Debugowanie
     console.log('Dane kategorii:', categoriesData);
     
     try {
-      // Jeśli mamy kategorie z API, używamy ich
+      // Jeśli mamy kategorie z API, używamy ich bezpośrednio
       if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
-        // Konwertujemy obiekty kategorii na stringi
-        const categoryNames = categoriesData.map(cat => {
-          if (typeof cat === 'object' && cat !== null) {
-            // Sprawdź, czy kategoria ma pole name
-            if (cat.name && typeof cat.name === 'string') {
-              return cat.name;
-            }
-            // Jeśli nie ma pola name, użyj id jako string
-            if (cat.id) {
-              return String(cat.id);
-            }
-          }
-          // Jeśli to nie jest obiekt, konwertuj na string
-          return String(cat);
-        }).filter(Boolean);
-        
-        console.log('Przetworzone nazwy kategorii:', categoryNames);
-        return categoryNames;
+        console.log('Używam kategorii z API:', categoriesData);
+        // Zwracamy pełne obiekty kategorii z id i name, upewniając się, że id jest liczbą
+        return categoriesData
+          .filter(category => category.id !== undefined)
+          .map(category => {
+            // Upewniamy się, że id jest liczbą
+            const numericId = typeof category.id === 'string' 
+              ? parseInt(category.id, 10) 
+              : (typeof category.id === 'number' ? category.id : NaN);
+            
+            // Jeśli nie mogliśmy przekonwertować id na liczbę, generujemy losowe id
+            const id = isNaN(numericId) ? Math.floor(Math.random() * 10000) : numericId;
+            
+            return {
+              id,
+              name: category.name
+            };
+          });
       }
       
       // Jako fallback, pobieramy unikalne kategorie z zadań
-      const taskCategories = Array.from(new Set(tasks.map(task => task.category).filter(Boolean)));
+      const taskCategories = Array.from(new Set(tasks
+        .map(task => task.id_category !== undefined ? task.id_category : task.category)
+        .filter(category => category !== undefined && category !== null)
+      ));
       console.log('Kategorie z zadań:', taskCategories);
-      return taskCategories;
+      
+      // Konwertujemy nazwy kategorii na obiekty z id i name
+      return taskCategories.map(category => {
+        // Upewniamy się, że id jest liczbą
+        let id: number;
+        
+        if (typeof category === 'number') {
+          id = category;
+        } else {
+          // Próbujemy przekonwertować string na liczbę
+          const parsedId = parseInt(String(category), 10);
+          // Jeśli konwersja się nie powiedzie, generujemy losowe id
+          id = isNaN(parsedId) ? Math.floor(Math.random() * 10000) : parsedId;
+        }
+        
+        return {
+          id,
+          name: String(category)
+        };
+      });
     } catch (error) {
       console.error('Błąd podczas przetwarzania kategorii:', error);
       return [];
@@ -264,11 +286,11 @@ export default function Home() {
   };
   
   // Create task from note
-  const handleCreateFromNote = (note: string, category: string) => {
+  const handleCreateFromNote = (note: string, category: string | number) => {
     const newTask: EditingTask = {
       id: generateId(),
       title: note,
-      category: category,
+      category: typeof category === 'number' ? category.toString() : category,
       notes: [],
       completed: false,
       dueDate: null,

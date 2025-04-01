@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dodawania Notatki</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Dodawania Notatki</h1>
+    
+    <div class="form-group">
+        <label for="content">Treść notatki:</label>
+        <textarea id="content" rows="4"></textarea>
+    </div>
+    
+    <div class="form-group">
+        <label for="category">Kategoria (opcjonalnie):</label>
+        <input type="text" id="category">
+    </div>
+    
+    <button id="addNote">Dodaj notatkę</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('addNote').addEventListener('click', async () => {
+            const content = document.getElementById('content').value;
+            const category = document.getElementById('category').value;
+            
+            if (!content) {
+                alert('Proszę wprowadzić treść notatki');
+                return;
+            }
+            
+            const noteData = { content };
+            if (category) {
+                noteData.category = category;
+            }
+            
+            try {
+                const response = await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(noteData)
+                });
+                
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <h3>Notatka dodana pomyślnie!</h3>
+                        <p><strong>ID:</strong> ${data.id}</p>
+                        <p><strong>Treść:</strong> ${data.content}</p>
+                        <p><strong>Kategoria:</strong> ${data.category || 'Brak'}</p>
+                        <p><strong>Data utworzenia:</strong> ${new Date(data.created_at).toLocaleString()}</p>
+                    `;
+                    // Wyczyść formularz
+                    document.getElementById('content').value = '';
+                    document.getElementById('category').value = '';
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `
+                        <h3>Błąd!</h3>
+                        <p>${errorData.error || 'Nieznany błąd'}</p>
+                        <p>${errorData.details || ''}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Błąd:', error);
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h3>Błąd!</h3>
+                    <p>Nie udało się połączyć z serwerem</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

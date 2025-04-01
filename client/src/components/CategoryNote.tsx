@@ -6,27 +6,39 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 interface CategoryNoteProps {
-  categoryName: string;
-  onCreateFromNote?: (content: string, category: string) => void;
+  categoryName: string | number;
+  id_category?: string | number;
+  onCreateFromNote?: (content: string, category: string | number) => void;
 }
 
-const CategoryNote: React.FC<CategoryNoteProps> = ({ categoryName, onCreateFromNote }) => {
+const CategoryNote: React.FC<CategoryNoteProps> = ({ categoryName, id_category, onCreateFromNote }) => {
   const [note, setNote] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [createAsTask, setCreateAsTask] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Priorytetowo używamy id_category, jeśli jest dostępne
+  const categoryParam = id_category !== undefined ? id_category : categoryName;
+
   const mutation = useMutation({
     mutationFn: (noteData: NoteInput) => addNote(noteData),
     onSuccess: (data) => {
       // Odświeżenie list notatek po dodaniu nowej
       queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/notes', categoryName] });
+      
+      // Odśwież listę notatek dla tej kategorii
+      if (categoryParam) {
+        queryClient.invalidateQueries({ queryKey: ['/api/notes', categoryParam] });
+      }
+      
+      // Odśwież również listę notatek bez kategorii
+      queryClient.invalidateQueries({ queryKey: ['/api/notes', '', true] });
       
       // Jeśli użytkownik chce utworzyć zadanie z notatki i przekazano funkcję do tworzenia zadania
       if (createAsTask && onCreateFromNote) {
-        onCreateFromNote(note, categoryName);
+        // Używamy id_category, jeśli jest dostępne
+        onCreateFromNote(note, categoryParam);
       }
       
       // Resetowanie formularza
@@ -62,28 +74,66 @@ const CategoryNote: React.FC<CategoryNoteProps> = ({ categoryName, onCreateFromN
       });
       return;
     }
-    
-    // Dodaj notatkę
-    if (!createAsTask) {
-      // Zawsze dodajemy kategorię do notatki
-      mutation.mutate({ 
-        content: note,
-        category: categoryName 
-      });
-    } else {
-      // Jeśli użytkownik chce utworzyć zadanie, wywołaj tylko funkcję onCreateFromNote
-      if (onCreateFromNote) {
-        onCreateFromNote(note, categoryName);
-        setNote('');
-        setIsExpanded(false);
-        setCreateAsTask(false);
-        toast({
-          title: 'Sukces',
-          description: 'Zadanie zostało dodane pomyślnie.',
-          duration: 3000,
-        });
-      }
+
+    // Jeśli użytkownik chce utworzyć zadanie, wywołaj tylko funkcję onCreateFromNote
+    if (createAsTask && onCreateFromNote) {
+      onCreateFromNote(note, categoryParam);
+      setNote('');
+      setIsExpanded(false);
+      setCreateAsTask(false);
+      return;
     }
+
+    // Przygotowanie danych notatki
+    const noteData: NoteInput = { content: note };
+
+    // Dodanie kategorii do notatki
+    if (id_category !== undefined) {
+        // Konwertuj id_category na liczbę, jeśli to możliwe
+        if (typeof id_category === 'string') {
+            try {
+                const parsedId = parseInt(id_category, 10);
+                if (!isNaN(parsedId)) {
+                    noteData.id_category = parsedId;
+                    console.log(`Dodawanie notatki z id_category (przekonwertowaną na liczbę): ${parsedId}`);
+                } else {
+                    // Jeśli nie można przekonwertować, użyj oryginalnej wartości
+                    noteData.id_category = id_category;
+                    console.log(`Dodawanie notatki z id_category (string): ${id_category}`);
+                }
+            } catch (e) {
+                noteData.id_category = id_category;
+                console.log(`Dodawanie notatki z id_category (błąd konwersji): ${id_category}`, e);
+            }
+        } else {
+            // Jeśli to już liczba, użyj jej bezpośrednio
+            noteData.id_category = id_category;
+            console.log(`Dodawanie notatki z id_category (liczba): ${id_category}`);
+        }
+    } else if (categoryName) {
+        // Konwertuj categoryName na liczbę, jeśli to możliwe
+        if (typeof categoryName === 'string') {
+            try {
+                const parsedCategory = parseInt(categoryName, 10);
+                if (!isNaN(parsedCategory)) {
+                    noteData.category = parsedCategory;
+                    console.log(`Dodawanie notatki z kategorią (przekonwertowaną na liczbę): ${parsedCategory}`);
+                } else {
+                    noteData.category = categoryName;
+                    console.log(`Dodawanie notatki z kategorią (string): ${categoryName}`);
+                }
+            } catch (e) {
+                noteData.category = categoryName;
+                console.log(`Dodawanie notatki z kategorią (błąd konwersji): ${categoryName}`, e);
+            }
+        } else {
+            noteData.category = categoryName;
+            console.log(`Dodawanie notatki z kategorią (liczba): ${categoryName}`);
+        }
+    }
+
+    console.log('Dane notatki do dodania:', noteData);
+    mutation.mutate(noteData);
   };
 
   const handleCancel = () => {
@@ -96,8 +146,7 @@ const CategoryNote: React.FC<CategoryNoteProps> = ({ categoryName, onCreateFromN
     return (
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <Button 
-          variant="outline" 
-          className="w-full flex items-center justify-center text-gray-500 hover:text-primary"
+          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
           onClick={() => setIsExpanded(true)}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

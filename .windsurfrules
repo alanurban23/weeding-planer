@@ -74,4 +74,107 @@
 - Use responsive variants (sm:, md:, lg:, etc.) for adaptive designs
 - Leverage state variants (hover:, focus:, active:, etc.) for interactive elements
 
+#### Important 
+- Don't use xhr, axios or fetch for API calls, use supabase client or useQuery
+
+
+⸻
+
+✅ Clean Architecture Guidelines for React + Supabase
+
+📁 Folder Structure
+
+src/
+├── app/              # App initialization, routing, global configs
+├── entities/         # Domain models (e.g. User, Post), types, interfaces
+├── features/         # Grouped logic + UI per feature
+│   └── auth/
+│       ├── components/
+│       ├── hooks/
+│       ├── services/
+│       └── model.ts
+├── shared/           # Reusable components and utilities
+├── pages/            # Page-level components (for Next.js) or route entry points
+├── widgets/          # Composite components that connect data + UI
+└── processes/        # Multi-step flows built from features (e.g. registration)
+
+
+
+⸻
+
+🔧 Clean Architecture Layers
+
+Layer	Description
+Entities	Domain logic, data models, types — pure layer.
+Use Cases	Application logic — e.g. registerUser.ts, uses Supabase internally.
+Interface / UI	React components, hooks — interface between user and system.
+Infrastructure	Supabase client, API calls — external dependencies.
+
+
+
+⸻
+
+🔑 Key Rules & Best Practices
+
+1. Dependencies go only one way
+	•	UI should not know about Supabase. It calls a useCase function like loginUser().
+	•	Supabase can be swapped out (e.g. Firebase) without touching UI code.
+
+2. Hooks as interface to use cases
+
+// features/auth/hooks/useLogin.ts
+export const useLogin = () => {
+  return useMutation((data) => loginUser(data)); // loginUser = use case
+};
+
+3. Supabase is just an adapter
+
+// shared/api/supabaseClient.ts
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// features/auth/services/supabaseAuth.ts
+export const signIn = async (email, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  return data;
+};
+
+4. Clean domain models
+
+// entities/user.ts
+export interface User {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
+5. Avoid direct Supabase calls in components
+
+❌ Bad:
+
+const handleLogin = async () => {
+  await supabase.auth.signInWithPassword(...);
+};
+
+✅ Good:
+
+const { mutate: login } = useLogin(); // login is a use case hiding Supabase logic
+
+
+
+⸻
+
+🛡️ Other Recommendations
+	•	✅ Use Zod or Yup to validate user input
+	•	✅ Handle errors properly with try/catch or useMutation onError
+	•	✅ Put app logic in features/*/services or dedicated useCases
+	•	✅ Build clean, reusable UI from shared/ui and widgets
+	•	✅ Separate side effects from logic (e.g., logic in hooks, not inside components)
+
+⸻
+
+- Try simple solutions first 
+
+
+
 
