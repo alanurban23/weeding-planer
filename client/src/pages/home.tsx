@@ -504,9 +504,12 @@ export default function Home() {
 
       {/* Category Manager Dialog */}
       <CategoryManager
-        show={showCategoryManager}
+        isOpen={showCategoryManager}
         onClose={() => setShowCategoryManager(false)}
         existingCategories={uniqueCategories}
+        onCategoryAdded={() => {
+          queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+        }}
       />
 
       {/* Mobile bottom navigation */}

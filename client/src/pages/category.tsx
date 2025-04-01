@@ -88,9 +88,12 @@ export default function CategoryPage() {
   }, [isLoadingCategory, categoryError, navigate]);
 
   // Pobieranie podkategorii dla bieżącej kategorii
-  const { data: subcategories = [], isLoading: isLoadingSubcategories } = useQuery<Category[]>({
+  const { data: subcategories = [], isLoading: isLoadingSubcategories, refetch: refetchSubcategories } = useQuery<Category[]>({
     queryKey: ['/api/categories/subcategories', categoryId],
     enabled: !!categoryId,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    staleTime: 0, // Always consider data stale to force refetch
     queryFn: async () => {
       try {
         // Pobierz wszystkie kategorie
@@ -450,10 +453,17 @@ export default function CategoryPage() {
         onCreateFromNote={handleCreateFromNote}
       />
       
-      <CategoryManager
-        show={showCategoryManager}
-        onClose={() => setShowCategoryManager(false)}
-      />
+      {showCategoryManager && (
+        <CategoryManager 
+          isOpen={showCategoryManager} 
+          onClose={() => setShowCategoryManager(false)} 
+          onCategoryAdded={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/categories/subcategories', categoryId] });
+            refetchSubcategories();
+          }}
+        />
+      )}
       
       <AlertDialog open={showDeleteDialog}>
         <AlertDialogContent>

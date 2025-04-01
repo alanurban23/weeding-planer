@@ -38,14 +38,16 @@ interface Category {
 }
 
 interface CategoryManagerProps {
-  show: boolean;
+  isOpen: boolean;
   onClose: () => void;
+  onCategoryAdded?: () => void;
   existingCategories?: Array<Category>;
 }
 
 const CategoryManager: React.FC<CategoryManagerProps> = ({
-  show,
+  isOpen,
   onClose,
+  onCategoryAdded,
   existingCategories = [],
 }) => {
   const { toast } = useToast();
@@ -57,16 +59,16 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   // Pobieranie kategorii z API
   const { data: categories = [], isLoading, refetch } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
-    enabled: show, // Pobierz tylko gdy dialog jest otwarty
+    enabled: isOpen, // Pobierz tylko gdy dialog jest otwarty
     staleTime: 0, // Zawsze odświeżaj dane przy otwarciu dialogu
   });
 
   // Efekt do logowania kategorii po pobraniu
   useEffect(() => {
-    if (show) {
+    if (isOpen) {
       console.log('Pobrane kategorie:', categories);
     }
-  }, [categories, show]);
+  }, [categories, isOpen]);
 
   // Dodawanie nowej kategorii
   const addCategoryMutation = useMutation({
@@ -74,6 +76,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
       apiRequest('/api/categories', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/categories/subcategories'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       setNewCategoryName('');
       setSelectedParentId(undefined);
@@ -82,6 +85,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
         title: "Kategoria dodana",
         description: "Nowa kategoria została pomyślnie dodana."
       });
+      if (onCategoryAdded) {
+        onCategoryAdded();
+      }
       // Zamknij modal po dodaniu kategorii
       onClose();
     },
@@ -181,7 +187,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
 
   return (
     <>
-      <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Zarządzanie kategoriami</DialogTitle>
