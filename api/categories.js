@@ -223,7 +223,33 @@ export default async function handler(req, res) {
     // Usuwanie kategorii
     if (req.method === 'DELETE') {
       console.log('Otrzymano żądanie DELETE dla /api/categories');
-      const { id } = req.query;
+      console.log('URL:', req.url);
+      console.log('Query params:', req.query);
+      
+      // Próba pobrania ID z query params
+      let id = req.query.id;
+      
+      // Jeśli ID nie jest w query params, spróbuj wyodrębnić z URL path
+      if (!id) {
+        // Sprawdź, czy URL zawiera ID kategorii (np. /api/categories/39)
+        const pathMatch = req.url.match(/\/api\/categories\/(\d+)/);
+        if (pathMatch && pathMatch[1]) {
+          id = pathMatch[1];
+          console.log(`Wyodrębnione ID z URL path: ${id}`);
+        }
+      }
+      
+      // Sprawdź, czy mamy ID w req.url jako ostatni segment
+      if (!id) {
+        const urlParts = req.url.split('/');
+        const lastPart = urlParts[urlParts.length - 1];
+        if (lastPart && /^\d+$/.test(lastPart)) {
+          id = lastPart;
+          console.log(`Wyodrębnione ID z ostatniego segmentu URL: ${id}`);
+        }
+      }
+      
+      console.log('Finalne ID kategorii:', id);
       
       if (!id) {
         return res.status(400).json({ error: 'ID kategorii jest wymagane' });

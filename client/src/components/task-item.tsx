@@ -52,7 +52,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
   };
 
   return (
-    <li className="bg-white shadow overflow-hidden rounded-md mb-3">
+    <li className="bg-white shadow overflow-hidden rounded-md mb-3 list-none">
       <div 
         className={cn(
           'border-l-4 px-4 py-4 sm:px-6 cursor-pointer',
@@ -121,7 +121,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        onCreateFromNote(note, task.category);
+                                        onCreateFromNote(note, task.category || "");
                                       }}
                                       className="ml-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center"
                                       title="Przekształć na zadanie"
@@ -142,7 +142,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onCreateFromNote(task.notes[0], task.category);
+                                  onCreateFromNote(task.notes[0], task.category || "");
                                 }}
                                 className="ml-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center"
                                 title="Przekształć na zadanie"

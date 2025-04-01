@@ -187,7 +187,7 @@ export default function CategoryPage() {
   const deleteCategoryMutation = useMutation({
     mutationFn: () => {
       if (categoryId === null) return Promise.resolve(null);
-      return apiRequest(`/api/categories/${categoryId}`, 'DELETE');
+      return apiRequest(`/api/categories?id=${categoryId}`, 'DELETE');
     },
     onSuccess: () => {
       toast({

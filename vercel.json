@@ -6,7 +6,14 @@
   "routes": [
     {
       "src": "/api/notes",
-      "dest": "api/public-notes.js",
+      "dest": "api/notes.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "src": "/api/notes/(.*)",
+      "dest": "api/notes.js",
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
@@ -21,6 +28,20 @@
     {
       "src": "/api/tasks/(.*)",
       "dest": "api/tasks.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "src": "/api/categories",
+      "dest": "api/categories.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "src": "/api/categories/(.*)",
+      "dest": "api/categories.js",
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
