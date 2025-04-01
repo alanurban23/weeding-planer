@@ -126,7 +126,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
     setEditedContent("");
   };
 
-  const handleCreateTask = (content: string, noteCategory?: string | number | null) => {
+  const handleCreateTask = (content: string, noteCategory?: string | number | null, noteId?: string) => {
     // Użyj kategorii notatki, jeśli istnieje, w przeciwnym razie użyj bieżącej kategorii lub domyślnej
     const taskCategory = noteCategory !== undefined && noteCategory !== null 
       ? noteCategory 
@@ -137,7 +137,13 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
       ? taskCategory.toString() 
       : taskCategory;
     
+    // Najpierw utwórz zadanie
     onCreateFromNote(content, categoryToUse);
+    
+    // Jeśli przekazano ID notatki, usuń ją po przekształceniu na zadanie
+    if (noteId) {
+      deleteNoteMutation.mutate(noteId);
+    }
   };
 
   return (
@@ -217,7 +223,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => handleCreateTask(note.content, note.category || undefined)}
+                        onClick={() => handleCreateTask(note.content, note.category || undefined, note.id)}
                         className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary flex items-center transition-opacity"
                         title="Przekształć na zadanie"
                       >

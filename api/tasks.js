@@ -176,7 +176,7 @@ export default async (req, res) => {
       
       res.status(201).json(data[0]);
     }
-    else if (req.method === 'PATCH') {
+    else if (req.method === 'PATCH' || req.method === 'PUT') {
       // Aktualizacja istniejącego zadania
       // Pobierz ID zadania z URL
       const taskId = req.url.split('/').pop();
@@ -328,7 +328,7 @@ export default async (req, res) => {
     }
     else {
       // Nieobsługiwana metoda HTTP
-      res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'DELETE']);
+      res.setHeader('Allow', ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']);
       res.status(405).json({ error: `Metoda ${req.method} nie jest obsługiwana` });
     }
   } catch (error) {

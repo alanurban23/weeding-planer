@@ -82,6 +82,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
         title: "Kategoria dodana",
         description: "Nowa kategoria została pomyślnie dodana."
       });
+      // Zamknij modal po dodaniu kategorii
+      onClose();
     },
     onError: (error) => {
       console.error("Błąd dodawania kategorii:", error);
