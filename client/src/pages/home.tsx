@@ -319,16 +319,32 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">
-            CodeNinja - Planer Weselny
-          </h1>
-          <Button onClick={() => setShowCategoryManager(true)}>
-            Zarządzaj kategoriami
-          </Button>
-        </div>
-      </header>
+<header className="bg-white shadow">
+  <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+    {/* Mobile header layout */}
+    <div className="md:hidden">
+      <h1 className="text-xl font-bold text-gray-900 mb-4">
+        CodeNinja - Planer Weselny
+      </h1>
+      <Button 
+        onClick={() => setShowCategoryManager(true)} 
+        className="w-full mb-2"
+      >
+        Zarządzaj kategoriami
+      </Button>
+    </div>
+    
+    {/* Desktop header layout - unchanged */}
+    <div className="hidden md:flex md:justify-between md:items-center">
+      <h1 className="text-3xl font-bold text-gray-900">
+        CodeNinja - Planer Weselny
+      </h1>
+      <Button onClick={() => setShowCategoryManager(true)}>
+        Zarządzaj kategoriami
+      </Button>
+    </div>
+  </div>
+</header>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
