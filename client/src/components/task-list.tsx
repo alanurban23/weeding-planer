@@ -122,18 +122,6 @@ const TaskList: React.FC<TaskListProps> = ({
           ))}
         </div>
       )}
-
-      {/* Add task button at the bottom */}
-      <div className="flex justify-center">
-        <Button 
-          onClick={onAddTask}
-          className="flex items-center"
-          variant="outline"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Dodaj zadanie
-        </Button>
-      </div>
     </div>
   );
 };

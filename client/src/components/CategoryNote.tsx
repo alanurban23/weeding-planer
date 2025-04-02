@@ -1,199 +1,204 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addNote, NoteInput } from '../lib/api.ts';
+import { addNote, NoteInput } from '../lib/api'; // Assuming addNote(data: NoteInput) signature
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Plus, Loader2 } from 'lucide-react'; // Import icons
+import { Checkbox } from "@/components/ui/checkbox"; // Assuming you use shadcn Checkbox
+import { Label } from "@/components/ui/label"; // Assuming you use shadcn Label
+
+// Helper function (should be identical/imported from shared location)
+const getNotesQueryKey = (
+  categoryParam: string | number | undefined,
+  onlyWithoutCategory: boolean // Although not used here for adding, keep for consistency if helper is shared
+) => {
+  const baseKey = ["/api/notes"];
+  if (categoryParam !== undefined) {
+    return [...baseKey, { category: categoryParam }];
+  }
+  // This component adds *to* a category, so 'withoutCategory' case isn't relevant for invalidation here
+  // if (onlyWithoutCategory) {
+  //   return [...baseKey, { withoutCategory: true }];
+  // }
+  return baseKey;
+};
+
 
 interface CategoryNoteProps {
-  categoryName: string | number;
-  id_category?: string | number;
+  categoryName: string | number; // Display name for the category context
+  id_category?: string | number; // Actual ID to associate the note with (priority)
+  // Callback to create a task *instead* of a note
   onCreateFromNote?: (content: string, category: string | number) => void;
 }
 
-const CategoryNote: React.FC<CategoryNoteProps> = ({ categoryName, id_category, onCreateFromNote }) => {
-  const [note, setNote] = useState('');
+const CategoryNote: React.FC<CategoryNoteProps> = ({
+  categoryName,
+  id_category,
+  onCreateFromNote
+}) => {
+  const [noteContent, setNoteContent] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [createAsTask, setCreateAsTask] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Priorytetowo używamy id_category, jeśli jest dostępne
-  const categoryParam = id_category !== undefined ? id_category : categoryName;
+  // Determine the category identifier to use (prioritize id_category)
+  const categoryParam = id_category ?? categoryName; // Use ?? for nullish coalescing
 
+  // Mutation to add a note
   const mutation = useMutation({
-    mutationFn: (noteData: NoteInput) => addNote(noteData),
-    onSuccess: (data) => {
-      // Odświeżenie list notatek po dodaniu nowej
-      queryClient.invalidateQueries({ queryKey: ['/api/notes'] });
-      
-      // Odśwież listę notatek dla tej kategorii
-      if (categoryParam) {
-        queryClient.invalidateQueries({ queryKey: ['/api/notes', categoryParam] });
-      }
-      
-      // Odśwież również listę notatek bez kategorii
-      queryClient.invalidateQueries({ queryKey: ['/api/notes', '', true] });
-      
-      // Jeśli użytkownik chce utworzyć zadanie z notatki i przekazano funkcję do tworzenia zadania
-      if (createAsTask && onCreateFromNote) {
-        // Używamy id_category, jeśli jest dostępne
-        onCreateFromNote(note, categoryParam);
-      }
-      
-      // Resetowanie formularza
-      setNote('');
+    mutationFn: (noteData: NoteInput) => addNote(noteData), // Assumes this signature is correct
+    onSuccess: (/* data - created note, if returned */) => {
+      // Generate the specific query key for this category
+      const notesInThisCategoryKey = getNotesQueryKey(categoryParam, false);
+
+      // Invalidate the general notes list and the list for this specific category
+      queryClient.invalidateQueries({ queryKey: ['/api/notes'] }); // Base key for all notes
+      queryClient.invalidateQueries({ queryKey: notesInThisCategoryKey });
+
+      // Reset form state
+      setNoteContent('');
       setIsExpanded(false);
-      setCreateAsTask(false);
-      
+      setCreateAsTask(false); // Reset checkbox
+
       toast({
         title: 'Sukces',
-        description: createAsTask ? 'Zadanie zostało dodane pomyślnie.' : 'Notatka została dodana pomyślnie.',
+        description: 'Notatka została dodana pomyślnie.', // Always a note if onSuccess runs
         duration: 3000,
       });
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error('Błąd dodawania notatki:', error);
+      const message = error instanceof Error ? error.message : "Nieznany błąd";
       toast({
         title: 'Błąd',
-        description: 'Nie udało się dodać notatki. Spróbuj ponownie.',
+        description: `Nie udało się dodać notatki: ${message}`,
         variant: 'destructive',
         duration: 3000,
       });
     },
   });
 
+  // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!note.trim()) {
-      toast({
-        title: 'Błąd',
-        description: 'Nie można dodać pustej notatki',
-        variant: 'destructive',
-        duration: 3000,
-      });
+    const trimmedContent = noteContent.trim();
+
+    if (!trimmedContent) {
+      toast({ title: 'Błąd', description: 'Treść nie może być pusta', variant: 'destructive' });
       return;
     }
 
-    // Jeśli użytkownik chce utworzyć zadanie, wywołaj tylko funkcję onCreateFromNote
-    if (createAsTask && onCreateFromNote) {
-      onCreateFromNote(note, categoryParam);
-      setNote('');
-      setIsExpanded(false);
-      setCreateAsTask(false);
-      return;
+    // --- Handle "Create as Task" scenario ---
+    if (createAsTask) {
+      if (onCreateFromNote) {
+        // Call the provided function to handle task creation
+        onCreateFromNote(trimmedContent, categoryParam);
+        // Reset form and state immediately after calling the handler
+        setNoteContent('');
+        setIsExpanded(false);
+        setCreateAsTask(false);
+        // Show success toast for task creation (handled by the parent or here if desired)
+        toast({
+          title: 'Sukces',
+          description: 'Zadanie zostało utworzone.',
+          duration: 3000,
+        });
+      } else {
+        // This case shouldn't happen if checkbox is disabled when onCreateFromNote is missing, but handle defensively
+        console.warn('Attempted to create task, but onCreateFromNote callback is missing.');
+        toast({ title: 'Błąd konfiguracji', description: 'Funkcja tworzenia zadania nie jest dostępna.', variant: 'destructive' });
+      }
+      return; // Stop execution here if creating a task
     }
 
-    // Przygotowanie danych notatki
-    const noteData: NoteInput = { content: note };
+    // --- Handle "Create as Note" scenario ---
+    const noteData: NoteInput = { content: trimmedContent };
 
-    // Dodanie kategorii do notatki
+    // Assign id_category or category, prioritizing id_category
+    // Simplified parsing logic
     if (id_category !== undefined) {
-        // Konwertuj id_category na liczbę, jeśli to możliwe
-        if (typeof id_category === 'string') {
-            try {
-                const parsedId = parseInt(id_category, 10);
-                if (!isNaN(parsedId)) {
-                    noteData.id_category = parsedId;
-                    console.log(`Dodawanie notatki z id_category (przekonwertowaną na liczbę): ${parsedId}`);
-                } else {
-                    // Jeśli nie można przekonwertować, użyj oryginalnej wartości
-                    noteData.id_category = id_category;
-                    console.log(`Dodawanie notatki z id_category (string): ${id_category}`);
-                }
-            } catch (e) {
-                noteData.id_category = id_category;
-                console.log(`Dodawanie notatki z id_category (błąd konwersji): ${id_category}`, e);
-            }
-        } else {
-            // Jeśli to już liczba, użyj jej bezpośrednio
-            noteData.id_category = id_category;
-            console.log(`Dodawanie notatki z id_category (liczba): ${id_category}`);
-        }
-    } else if (categoryName) {
-        // Konwertuj categoryName na liczbę, jeśli to możliwe
-        if (typeof categoryName === 'string') {
-            try {
-                const parsedCategory = parseInt(categoryName, 10);
-                if (!isNaN(parsedCategory)) {
-                    noteData.category = parsedCategory;
-                    console.log(`Dodawanie notatki z kategorią (przekonwertowaną na liczbę): ${parsedCategory}`);
-                } else {
-                    noteData.category = categoryName;
-                    console.log(`Dodawanie notatki z kategorią (string): ${categoryName}`);
-                }
-            } catch (e) {
-                noteData.category = categoryName;
-                console.log(`Dodawanie notatki z kategorią (błąd konwersji): ${categoryName}`, e);
-            }
-        } else {
-            noteData.category = categoryName;
-            console.log(`Dodawanie notatki z kategorią (liczba): ${categoryName}`);
-        }
+      noteData.id_category = typeof id_category === 'string' ? (parseInt(id_category, 10) || id_category) : id_category;
+    } else if (categoryName !== undefined) { // Use categoryName if id_category is absent
+      noteData.category = typeof categoryName === 'string' ? (parseInt(categoryName, 10) || categoryName) : categoryName;
     }
+    // Ensure the structure of noteData matches the expected NoteInput for your API
 
-    console.log('Dane notatki do dodania:', noteData);
+    // Trigger the mutation to add the note
     mutation.mutate(noteData);
   };
 
+  // Handle cancelling the form
   const handleCancel = () => {
-    setNote('');
+    setNoteContent('');
     setIsExpanded(false);
     setCreateAsTask(false);
   };
 
+  // Render collapsed state
   if (!isExpanded) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <Button 
-          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+       // Use a simpler container or just the button if no background/shadow needed when collapsed
+      <div className="mb-6">
+         <Button
+          variant="outline" // Example style
+          className="flex items-center w-full justify-start text-muted-foreground hover:text-foreground"
           onClick={() => setIsExpanded(true)}
+          aria-expanded={isExpanded} // Accessibility
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Dodaj notatkę w tej kategorii
+          <Plus className="h-4 w-4 mr-2" />
+          Dodaj notatkę w kategorii "{categoryName}"
         </Button>
       </div>
     );
   }
 
+  // Render expanded state (form)
   return (
-    <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-      <h3 className="text-lg font-medium mb-3">Dodaj notatkę w kategorii: {categoryName}</h3>
-      <form onSubmit={handleSubmit}>
+    <div className="bg-white rounded-lg shadow-sm p-4 mb-6 border">
+      <h3 className="text-lg font-medium mb-3">Dodaj {createAsTask ? 'zadanie' : 'notatkę'} w kategorii: {categoryName}</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <Textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Wpisz treść notatki..."
-          className="w-full mb-3 min-h-[100px]"
+          value={noteContent}
+          onChange={(e) => setNoteContent(e.target.value)}
+          placeholder={createAsTask ? "Wpisz treść zadania..." : "Wpisz treść notatki..."}
+          className="w-full min-h-[100px]"
           required
+          autoFocus // Auto focus when expanded
+          disabled={mutation.isPending} // Disable textarea during note submission
         />
-        <div className="flex items-center mb-3">
-          <input
-            type="checkbox"
-            id="createAsTask"
-            checked={createAsTask}
-            onChange={(e) => setCreateAsTask(e.target.checked)}
-            className="mr-2"
-          />
-          <label htmlFor="createAsTask" className="text-sm text-gray-600">
-            Dodaj jako zadanie (zamiast notatki)
-          </label>
-        </div>
+        {/* Conditionally render checkbox only if task creation callback is provided */}
+        {onCreateFromNote && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="createAsTask"
+                checked={createAsTask}
+                onCheckedChange={(checked) => setCreateAsTask(Boolean(checked))} // Adapt based on Checkbox component API
+                disabled={mutation.isPending} // Disable checkbox during note submission
+              />
+              <Label htmlFor="createAsTask" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Dodaj jako zadanie (zamiast notatki)
+              </Label>
+            </div>
+        )}
         <div className="flex space-x-2 justify-end">
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button" // Ensure it doesn't submit the form
+            variant="outline"
             onClick={handleCancel}
+            disabled={mutation.isPending} // Disable cancel during note submission
           >
             Anuluj
           </Button>
-          <Button 
-            type="submit" 
-            disabled={mutation.isPending}
+          <Button
+            type="submit"
+            // Disable if note mutation is pending OR if trying to submit empty content
+            disabled={mutation.isPending || !noteContent.trim()}
           >
-            {mutation.isPending ? 'Dodawanie...' : createAsTask ? 'Dodaj zadanie' : 'Dodaj notatkę'}
+            {/* Show loader only if adding a NOTE */}
+            {mutation.isPending && !createAsTask && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mutation.isPending && !createAsTask ? 'Dodawanie...' : createAsTask ? 'Dodaj zadanie' : 'Dodaj notatkę'}
           </Button>
         </div>
       </form>

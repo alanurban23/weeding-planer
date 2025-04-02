@@ -1,542 +1,268 @@
-// Bezpośredni dostęp do Supabase - bez API
+// Import necessary modules
+import express from 'express';
+import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-// Inicjalizacja klienta Supabase z opcjami, które całkowicie wyłączają walidację schematu
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
-  {
-    db: {
-      schema: 'public'
-    },
-    global: {
-      headers: {
-        'X-Supabase-No-Schema-Validation': 'true'
-      }
-    }
-  }
-);
+// Load environment variables from .env file
+dotenv.config();
 
-// Funkcje do bezpośredniej pracy z notatkami
-export async function getNotes(category = null, id_category = null) {
-  try {
-    console.log('Pobieranie notatek bezpośrednio z Supabase', 
-      id_category ? `dla id_category: ${id_category} (typ: ${typeof id_category})` : 
-      category ? `dla kategorii: ${category}` : '');
-    
-    // Pobierz wszystkie notatki bez filtrowania
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Błąd pobierania notatek:', error);
-      throw error;
-    }
-    
-    console.log(`Pobrano ${data.length} notatek z bazy danych`);
-    
-    // Wyświetl szczegółowe informacje o wszystkich notatkach
-    console.log('Wszystkie notatki:');
-    data.forEach(note => {
-      console.log(`Notatka ID ${note.id}: id_category = ${note.id_category}, content = ${note.content}`);
-    });
-    
-    // Filtrowanie po stronie serwera
-    let filteredData = data;
-    
-    // Filtrowanie po id_category
-    if (id_category !== null && id_category !== undefined && id_category !== '') {
-      console.log(`Filtrowanie notatek dla id_category: ${id_category} (typ: ${typeof id_category})`);
-      
-      // Konwertuj id_category na liczbę, jeśli to string
-      let categoryIdNum;
-      if (typeof id_category === 'string') {
-        categoryIdNum = parseInt(id_category, 10);
-        console.log(`Przekonwertowano id_category ze stringa na liczbę: ${categoryIdNum}`);
-      } else {
-        categoryIdNum = id_category;
-      }
-      
-      // Filtruj notatki - używamy loose comparison (==) zamiast strict (===)
-      // aby obsłużyć różne typy danych (string vs number)
-      filteredData = data.filter(note => {
-        // Konwertuj id_category notatki na string dla porównania
-        const noteIdCategoryStr = String(note.id_category);
-        const categoryIdStr = String(categoryIdNum);
-        
-        const matches = noteIdCategoryStr === categoryIdStr;
-        console.log(`Notatka ID ${note.id}: Porównanie ${noteIdCategoryStr} === ${categoryIdStr} = ${matches}`);
-        
-        return matches;
-      });
-      
-      console.log(`Znaleziono ${filteredData.length} notatek dla id_category ${id_category}`);
-    }
-    else if (category === '') {
-      console.log('Filtrowanie notatek bez kategorii');
-      
-      // Filtruj notatki bez kategorii (id_category jest null)
-      filteredData = data.filter(note => note.id_category === null);
-      
-      console.log(`Znaleziono ${filteredData.length} notatek bez kategorii`);
-    }
-    else if (category && category !== '') {
-      console.log(`Filtrowanie notatek dla kategorii: ${category} (typ: ${typeof category})`);
-      
-      // Konwertuj kategorię na liczbę, jeśli to możliwe
-      const categoryId = parseInt(category, 10);
-      
-      // Filtruj notatki dla konkretnej kategorii
-      filteredData = data.filter(note => {
-        const matchesCategory = note.category == category || note.category == categoryId;
-        return matchesCategory;
-      });
-      
-      console.log(`Znaleziono ${filteredData.length} notatek dla kategorii ${category}`);
-    }
-    
-    return filteredData || [];
-  } catch (error) {
-    console.error('Wyjątek podczas pobierania notatek:', error);
-    throw error;
-  }
+// --- Configuration ---
+const PORT = process.env.PORT || 3001; // Use port from env or default
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("FATAL ERROR: Supabase URL and Anon Key must be defined in environment variables.");
+  process.exit(1); // Exit if essential config is missing
 }
 
-// Funkcja do sprawdzenia struktury tabeli
-async function checkTableStructure() {
-  try {
-    console.log('Sprawdzanie struktury tabeli notes...');
-    
-    // Pobierz definicję tabeli - alternatywne podejście
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .limit(1);
-    
-    if (error) {
-      console.error('Błąd pobierania danych z tabeli notes:', error);
-      return null;
-    }
-    
-    console.log('Przykładowy rekord z tabeli notes:', data);
-    
-    // Sprawdź kolumny w tabeli
-    const { data: columns, error: columnsError } = await supabase
-      .rpc('get_table_columns', { table_name: 'notes' });
-    
-    if (columnsError) {
-      console.error('Błąd pobierania kolumn tabeli:', columnsError);
-    } else {
-      console.log('Kolumny tabeli notes:', columns);
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Błąd podczas sprawdzania struktury tabeli:', error);
-    return null;
+// --- Initialize Supabase Client ---
+// REMOVED schema validation bypass
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: { schema: 'public' },
+});
+
+const NOTES_TABLE = 'notes';
+
+// --- Initialize Express App ---
+const app = express();
+
+// --- Middleware ---
+app.use(cors()); // Enable CORS for all origins (configure specific origins in production)
+app.use(express.json()); // Middleware to parse JSON request bodies
+
+// --- Helper Function for Parsing Category ID ---
+function parseCategoryId(id_category) {
+  if (id_category === undefined || id_category === null || id_category === '') {
+    return null; // Treat empty/null/undefined as null
   }
+  const parsed = parseInt(String(id_category), 10);
+  if (isNaN(parsed)) {
+    console.warn(`Received non-numeric id_category '${id_category}', treating as null.`);
+    return null; // Treat non-numeric strings as null
+  }
+  return parsed;
 }
 
-export async function addNote(noteData) {
+
+// --- API Routes for /api/notes ---
+
+// GET /api/notes OR /api/notes?id_category=... OR /api/notes?category=
+app.get('/api/notes', async (req, res) => {
   try {
-    console.log('Dodawanie notatki bezpośrednio do Supabase:', JSON.stringify(noteData));
-    
-    if (!noteData || !noteData.content) {
-      console.error('Brak wymaganej treści notatki');
-      throw new Error('Brak wymaganej treści notatki');
-    }
-    
-    // Upewnij się, że nie ma pola id w danych
-    const { id, title, ...safeNoteData } = noteData;
-    
-    // Tworzymy nowy obiekt tylko z polami, które chcemy zapisać
-    const newNote = {
-      content: safeNoteData.content,
-      created_at: new Date().toISOString()
-    };
-    
-    // Obsługa kategorii - priorytetowo używamy id_category, jeśli jest dostępne
-    if (safeNoteData.hasOwnProperty('id_category') && safeNoteData.id_category !== null && safeNoteData.id_category !== '') {
-      // Jeśli id_category jest stringiem, spróbuj przekonwertować na liczbę
-      if (typeof safeNoteData.id_category === 'string') {
-        try {
-          newNote.id_category = parseInt(safeNoteData.id_category, 10);
-          console.log(`Dodawanie notatki z id_category (przekonwertowaną na liczbę): ${newNote.id_category}`);
-        } catch (e) {
-          // Jeśli konwersja się nie powiedzie, użyj oryginalnej wartości
-          newNote.id_category = safeNoteData.id_category;
-          console.log(`Dodawanie notatki z id_category (oryginalna wartość): ${newNote.id_category}`);
-        }
-      } else {
-        // Jeśli to już liczba, użyj bezpośrednio
-        newNote.id_category = safeNoteData.id_category;
-        console.log(`Dodawanie notatki z id_category: ${newNote.id_category}`);
+    const { id_category, category } = req.query;
+    console.log(`GET /api/notes - Query Params: id_category=${id_category}, category=${category}`);
+
+    let query = supabase.from(NOTES_TABLE).select('*');
+
+    if (id_category !== undefined) {
+      // Filter by numeric category ID
+      const categoryIdNum = parseCategoryId(id_category);
+      if (categoryIdNum === null && String(id_category).length > 0) { // Check if it was non-empty but invalid
+        console.log(`Invalid id_category '${id_category}' provided.`);
+        // Return empty array if ID format is invalid but was provided
+        return res.status(200).json([]);
       }
-    } else if (safeNoteData.hasOwnProperty('category')) {
-      // Obsługa kategorii - podobnie jak wcześniej
-      // ...
+       // If parseCategoryId returns null (for empty string or actual null), filter for null
+      query = query.eq('id_category', categoryIdNum);
+    } else if (category === '') {
+      // Filter notes without category
+      query = query.is('id_category', null);
     }
-    
-    console.log('Przygotowane dane notatki:', newNote);
-    
-    // Dodaj notatkę bezpośrednio przez klienta Supabase
-    const { data, error } = await supabase
-      .from('notes')
-      .insert([newNote])
-      .select();
-    
-    if (error) {
-      console.error('Błąd dodawania notatki:', error);
-      throw error;
-    }
-    
-    console.log('Notatka dodana pomyślnie:', data);
-    return data[0];
-  } catch (error) {
-    console.error('Wyjątek podczas dodawania notatki:', error);
-    throw error;
-  }
-}
+    // Note: Filtering by category *name* is not implemented here, requires join/different approach
 
-export async function updateNote(id, noteData) {
-  try {
-    console.log(`Aktualizacja notatki o ID ${id} bezpośrednio w Supabase:`, JSON.stringify(noteData));
-    
-    if (!id) {
-      console.error('Brak ID notatki do aktualizacji');
-      throw new Error('Brak ID notatki do aktualizacji');
+    query = query.order('created_at', { ascending: false });
+
+    const { data, error, status } = await query;
+
+    if (error) {
+      console.error('Supabase GET Error:', error);
+      return res.status(status || 500).json({ error: 'Failed to fetch notes', details: error.message });
     }
-    
-    // Najpierw pobieramy istniejącą notatkę
-    const { data: existingNote, error: fetchError } = await supabase
-      .from('notes')
+
+    console.log(`Returning ${data?.length ?? 0} notes.`);
+    return res.status(200).json(data || []); // Ensure data is always an array
+
+  } catch (error) {
+    console.error('GET /api/notes Error:', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+// GET /api/notes/:id
+app.get('/api/notes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`GET /api/notes/${id}`);
+
+    if (!id || isNaN(parseInt(id, 10))) {
+         return res.status(400).json({ error: 'Valid Note ID parameter is required.' });
+    }
+
+    const { data, error, status } = await supabase
+      .from(NOTES_TABLE)
       .select('*')
-      .eq('id', id)
+      .eq('id', parseInt(id, 10))
       .single();
-      
-    if (fetchError) {
-      console.error(`Błąd pobierania notatki o ID ${id}:`, fetchError);
-      throw fetchError;
-    }
-    
-    if (!existingNote) {
-      console.error(`Nie znaleziono notatki o ID ${id}`);
-      throw new Error(`Nie znaleziono notatki o ID ${id}`);
-    }
-    
-    console.log('Istniejąca notatka:', existingNote);
-    
-    // Upewnij się, że nie ma pola id w danych aktualizacji
-    const { id: noteId, title, ...safeNoteData } = noteData;
-    
-    // Tworzymy obiekt z danymi do aktualizacji
-    const updateData = {};
-    
-    // Aktualizujemy tylko te pola, które zostały przekazane
-    if (safeNoteData.hasOwnProperty('content')) {
-      updateData.content = safeNoteData.content;
-    }
-    
-    // Obsługa id_category - priorytetowo używamy id_category, jeśli jest dostępne
-    if (safeNoteData.hasOwnProperty('id_category')) {
-      // Jeśli id_category jest stringiem, spróbuj przekonwertować na liczbę
-      if (typeof safeNoteData.id_category === 'string' && safeNoteData.id_category !== '') {
-        try {
-          updateData.id_category = parseInt(safeNoteData.id_category, 10);
-          console.log(`Aktualizacja notatki z id_category (przekonwertowaną na liczbę): ${updateData.id_category}`);
-        } catch (e) {
-          // Jeśli konwersja się nie powiedzie, użyj oryginalnej wartości
-          updateData.id_category = safeNoteData.id_category;
-          console.log(`Aktualizacja notatki z id_category (oryginalna wartość): ${updateData.id_category}`);
-        }
-      } else {
-        // Jeśli to już liczba lub null, użyj bezpośrednio
-        updateData.id_category = safeNoteData.id_category;
-        console.log(`Aktualizacja notatki z id_category: ${updateData.id_category}`);
-      }
-    } else if (safeNoteData.hasOwnProperty('category')) {
-      // Jeśli mamy tylko pole category, spróbujmy znaleźć odpowiednie id_category
-      console.log(`Próba znalezienia id_category dla kategorii: ${safeNoteData.category}`);
-      
-      try {
-        // Sprawdź, czy kategoria jest liczbą
-        if (typeof safeNoteData.category === 'number') {
-          // Jeśli to liczba, użyj jej jako id_category
-          updateData.id_category = safeNoteData.category;
-          console.log(`Użycie liczby jako id_category: ${updateData.id_category}`);
-        } else if (typeof safeNoteData.category === 'string' && !isNaN(Number(safeNoteData.category))) {
-          // Jeśli to string, który można przekonwertować na liczbę, użyj go jako id_category
-          updateData.id_category = Number(safeNoteData.category);
-          console.log(`Konwersja stringa na id_category: ${updateData.id_category}`);
-        } else if (typeof safeNoteData.category === 'string' && safeNoteData.category.trim() !== '') {
-          // Jeśli to string, który nie jest liczbą, spróbuj znaleźć kategorię w bazie danych
-          const { data: categoryData, error: categoryError } = await supabase
-            .from('categories')
-            .select('id')
-            .eq('name', safeNoteData.category)
-            .limit(1);
-            
-          if (categoryError) {
-            console.error('Błąd podczas wyszukiwania kategorii:', categoryError);
-          } else if (categoryData && categoryData.length > 0) {
-            // Jeśli znaleziono kategorię, użyj jej id
-            updateData.id_category = categoryData[0].id;
-            console.log(`Znaleziono id_category ${updateData.id_category} dla kategorii "${safeNoteData.category}"`);
-          } else {
-            // Jeśli nie znaleziono kategorii, utwórz nową
-            console.log(`Nie znaleziono kategorii "${safeNoteData.category}". Tworzenie nowej...`);
-            const { data: newCategory, error: newCategoryError } = await supabase
-              .from('categories')
-              .insert({ name: safeNoteData.category })
-              .select();
-              
-            if (newCategoryError) {
-              console.error('Błąd podczas tworzenia nowej kategorii:', newCategoryError);
-            } else if (newCategory && newCategory.length > 0) {
-              // Jeśli utworzono nową kategorię, użyj jej id
-              updateData.id_category = newCategory[0].id;
-              console.log(`Utworzono nową kategorię z id ${updateData.id_category}`);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Błąd podczas przetwarzania kategorii:', e);
-        // W przypadku błędu, nie ustawiamy id_category
-      }
-    } else if (existingNote.hasOwnProperty('id_category')) {
-      updateData.id_category = existingNote.id_category;
-      console.log(`Zachowanie istniejącej kategorii: ${updateData.id_category}`);
-    } else {
-      updateData.id_category = null;
-      console.log('Ustawienie kategorii na null');
-    }
-    
-    // Aktualizujemy notatkę
-    const { data, error } = await supabase
-      .from('notes')
-      .update(updateData)
-      .eq('id', id)
-      .select();
-      
+
     if (error) {
-      console.error(`Błąd aktualizacji notatki o ID ${id}:`, error);
-      throw error;
+      // Handle not found specifically (e.g., PGROUT02 error code for .single())
+       if (error.code === 'PGRST116') { // Check Supabase error codes documentation
+         return res.status(404).json({ error: 'Note not found.' });
+       }
+      console.error(`Supabase GET by ID Error (ID: ${id}):`, error);
+      return res.status(status || 500).json({ error: 'Failed to fetch note', details: error.message });
     }
-    
-    console.log(`Zaktualizowano notatkę o ID ${id}:`, data);
-    return data[0];
-  } catch (error) {
-    console.error('Błąd podczas aktualizacji notatki:', error);
-    throw error;
-  }
-}
 
-export async function deleteNote(id) {
+     console.log(`Returning note ID ${id}.`);
+    return res.status(200).json(data);
+
+  } catch (error) {
+    console.error(`GET /api/notes/:id Error:`, error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+
+// POST /api/notes
+app.post('/api/notes', async (req, res) => {
   try {
-    console.log(`Usuwanie notatki ID ${id} bezpośrednio z Supabase`);
-    
-    if (!id) {
-      throw new Error('Brak ID notatki do usunięcia');
+    const { content, id_category } = req.body;
+    console.log('POST /api/notes - Body:', req.body);
+
+    if (!content || typeof content !== 'string' || content.trim() === '') {
+      return res.status(400).json({ error: 'Note content is required and must be a non-empty string.' });
     }
-    
-    const { data, error } = await supabase
-      .from('notes')
-      .delete()
-      .eq('id', id);
-    
+
+    const noteToInsert = {
+      content: content.trim(),
+      id_category: parseCategoryId(id_category), // Use helper to handle conversion/null
+      // created_at should be handled by database default 'now()'
+    };
+
+    const { data, error, status } = await supabase
+      .from(NOTES_TABLE)
+      .insert(noteToInsert)
+      .select()
+      .single();
+
     if (error) {
-      console.error('Błąd usuwania notatki:', error);
-      throw error;
+      console.error('Supabase POST Error:', error);
+      return res.status(status || 500).json({ error: 'Failed to add note', details: error.message });
     }
-    
-    console.log('Notatka usunięta pomyślnie');
-    return { success: true };
+
+    console.log(`Note added with ID ${data?.id}.`);
+    return res.status(201).json(data); // 201 Created
+
   } catch (error) {
-    console.error('Wyjątek podczas usuwania notatki:', error);
-    throw error;
+    console.error('POST /api/notes Error:', error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
-}
+});
 
-// Dla kompatybilności z istniejącym kodem, zachowujemy handler API
-// ale używamy bezpośrednich funkcji Supabase
-export default async function handler(req, res) {
-  // Obsługa CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
+// PUT /api/notes/:id
+app.put('/api/notes/:id', async (req, res) => {
   try {
-    // Pobieranie notatek
-    if (req.method === 'GET') {
-      console.log('Otrzymano żądanie GET dla /api/notes');
-      console.log('Query params:', req.query);
-      
-      // Pobierz parametry z zapytania
-      const { id, category, id_category } = req.query;
-      
-      console.log(`Parametry zapytania - id: ${id}, category: ${category}, id_category: ${id_category}`);
-      console.log(`Typy parametrów - id: ${typeof id}, category: ${typeof category}, id_category: ${typeof id_category}`);
-      
-      // Jeśli podano ID, pobierz konkretną notatkę
-      if (id) {
-        console.log(`Pobieranie notatki o ID: ${id}`);
-        const { data, error } = await supabase
-          .from('notes')
-          .select('*')
-          .eq('id', id)
-          .single();
-          
-        if (error) {
-          console.error('Błąd pobierania notatki:', error);
-          return res.status(500).json({ error: 'Błąd pobierania notatki', details: error.message });
-        }
-        
-        return res.status(200).json(data);
-      }
-      
-      // Jeśli podano id_category, pobierz notatki dla tej kategorii bezpośrednio z Supabase
-      if (id_category !== undefined) {
-        console.log(`Pobieranie notatek dla id_category: ${id_category}`);
-        
-        // Konwertuj id_category na liczbę
-        const categoryId = parseInt(id_category, 10);
-        console.log(`Używam id_category jako liczbę: ${categoryId}`);
-        
-        // Pobierz notatki bezpośrednio z Supabase z filtrowaniem po id_category
-        const { data, error } = await supabase
-          .from('notes')
-          .select('*')
-          .eq('id_category', categoryId)
-          .order('created_at', { ascending: false });
-          
-        if (error) {
-          console.error('Błąd pobierania notatek dla kategorii:', error);
-          return res.status(500).json({ error: 'Błąd pobierania notatek', details: error.message });
-        }
-        
-        console.log(`Znaleziono ${data.length} notatek dla id_category ${id_category}`);
-        return res.status(200).json(data);
-      }
-      
-      // W przeciwnym razie pobierz wszystkie notatki (z filtrowaniem, jeśli podano kategorię)
-      try {
-        const notes = await getNotes(category, id_category);
-        return res.status(200).json(notes);
-      } catch (error) {
-        console.error('Błąd pobierania notatek:', error);
-        return res.status(500).json({ error: 'Błąd pobierania notatek', details: error.message });
-      }
+    const { id } = req.params;
+     const { content, id_category } = req.body; // Extract specific fields for update
+    console.log(`PUT /api/notes/${id} - Body:`, req.body);
+
+    if (!id || isNaN(parseInt(id, 10))) {
+         return res.status(400).json({ error: 'Valid Note ID parameter is required.' });
     }
-    
-    // Dodawanie nowej notatki
-    if (req.method === 'POST') {
-      console.log('Otrzymano żądanie POST dla /api/notes');
-      console.log('Dane notatki:', req.body);
-      
-      if (!req.body || !req.body.content) {
-        return res.status(400).json({ error: 'Brak wymaganych danych' });
+
+    const noteToUpdate = {};
+
+    // Only include fields in the update if they are provided
+    if (content !== undefined) {
+      if (typeof content !== 'string' || content.trim() === '') {
+         return res.status(400).json({ error: 'Note content must be a non-empty string if provided.' });
       }
-      
-      try {
-        // Przygotuj dane notatki
-        const noteData = {
-          content: req.body.content,
-          created_at: new Date().toISOString()
-        };
-        
-        // Dodaj id_category, jeśli istnieje
-        if (req.body.id_category !== undefined) {
-          noteData.id_category = req.body.id_category;
-        } else if (req.body.category !== undefined) {
-          noteData.category = req.body.category;
-        }
-        
-        console.log('Przygotowane dane notatki:', noteData);
-        
-        // Użyj bezpośredniego zapytania HTTP do REST API Supabase
-        // Pomijamy całkowicie klienta Supabase i jego cache schematu
-        const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/notes`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': process.env.SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`,
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify(noteData)
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Błąd dodawania notatki przez REST API:', errorText);
-          return res.status(500).json({ error: 'Błąd dodawania notatki', details: errorText });
-        }
-        
-        const data = await response.json();
-        console.log('Notatka dodana pomyślnie:', data);
-        return res.status(201).json(data[0]);
-      } catch (error) {
-        console.error('Wyjątek podczas dodawania notatki:', error);
-        return res.status(500).json({ error: 'Błąd dodawania notatki', details: error.message });
-      }
+      noteToUpdate.content = content.trim();
     }
-    
-    // Aktualizacja istniejącej notatki
-    if (req.method === 'PUT') {
-      console.log('Otrzymano żądanie PUT dla /api/notes');
-      
-      // Pobierz ID notatki z zapytania
-      const { id } = req.query;
-      
-      if (!id) {
-        return res.status(400).json({ error: 'Brak ID notatki do aktualizacji' });
-      }
-      
-      if (!req.body) {
-        return res.status(400).json({ error: 'Brak danych do aktualizacji' });
-      }
-      
-      try {
-        // Użyj funkcji updateNote do aktualizacji notatki
-        const updatedNote = await updateNote(id, req.body);
-        return res.status(200).json(updatedNote);
-      } catch (error) {
-        console.error('Błąd aktualizacji notatki:', error);
-        return res.status(500).json({ error: 'Błąd aktualizacji notatki', details: error.message });
-      }
+
+    // Handle id_category update (allow setting to null)
+    if (id_category !== undefined) { // Check if the key exists in the request body
+        noteToUpdate.id_category = parseCategoryId(id_category); // Use helper
     }
-    
-    // Usuwanie notatki
-    if (req.method === 'DELETE') {
-      console.log('Otrzymano żądanie DELETE dla /api/notes');
-      
-      // Pobierz ID notatki z zapytania
-      const { id } = req.query;
-      
-      if (!id) {
-        return res.status(400).json({ error: 'Brak ID notatki do usunięcia' });
-      }
-      
-      try {
-        // Użyj funkcji deleteNote do usunięcia notatki
-        await deleteNote(id);
-        return res.status(200).json({ success: true, message: 'Notatka została usunięta' });
-      } catch (error) {
-        console.error('Błąd usuwania notatki:', error);
-        return res.status(500).json({ error: 'Błąd usuwania notatki', details: error.message });
-      }
+
+    // Prevent empty updates
+    if (Object.keys(noteToUpdate).length === 0) {
+       return res.status(400).json({ error: 'No valid fields provided for update.' });
     }
-    
-    // Jeśli metoda nie jest obsługiwana
-    return res.status(405).json({ error: 'Metoda nie jest obsługiwana' });
+
+    const { data, error, status } = await supabase
+      .from(NOTES_TABLE)
+      .update(noteToUpdate)
+      .eq('id', parseInt(id, 10))
+      .select()
+      .single();
+
+    if (error) {
+       // Handle not found specifically
+       if (error.code === 'PGRST116') {
+         return res.status(404).json({ error: 'Note not found for update.' });
+       }
+      console.error(`Supabase PUT Error (ID: ${id}):`, error);
+      return res.status(status || 500).json({ error: 'Failed to update note', details: error.message });
+    }
+
+     console.log(`Note ID ${id} updated.`);
+    return res.status(200).json(data);
+
   } catch (error) {
-    console.error('Nieoczekiwany błąd w handlerze API:', error);
-    return res.status(500).json({ error: 'Nieoczekiwany błąd', details: error.message });
+    console.error(`PUT /api/notes/:id Error:`, error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
-}
+});
+
+
+// DELETE /api/notes/:id
+app.delete('/api/notes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`DELETE /api/notes/${id}`);
+
+     if (!id || isNaN(parseInt(id, 10))) {
+         return res.status(400).json({ error: 'Valid Note ID parameter is required.' });
+    }
+
+    const { error, status, count } = await supabase
+      .from(NOTES_TABLE)
+      .delete({ count: 'exact' }) // Request count of deleted rows
+      .eq('id', parseInt(id, 10));
+
+    if (error) {
+      console.error(`Supabase DELETE Error (ID: ${id}):`, error);
+      return res.status(status || 500).json({ error: 'Failed to delete note', details: error.message });
+    }
+
+    // Check if a row was actually deleted
+    if (count === 0) {
+         return res.status(404).json({ error: 'Note not found for deletion.' });
+    }
+
+    console.log(`Note ID ${id} deleted.`);
+    // Send 200 with success message or 204 No Content
+    return res.status(200).json({ success: true, message: 'Note deleted successfully.' });
+    // return res.status(204).end();
+
+  } catch (error) {
+    console.error(`DELETE /api/notes/:id Error:`, error);
+    return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
+});
+
+
+// --- Basic Root Route ---
+app.get('/', (req, res) => {
+  res.send('Notes API is running.');
+});
+
+// --- Start Server ---
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+  console.log(`Supabase URL: ${supabaseUrl}`); // Log URL but not key
+});

@@ -1,161 +1,177 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Task } from '@shared/schema';
+import { Task } from '@shared/schema'; // Assuming Task type is correctly defined
 import { Progress } from '@/components/ui/progress';
+import { Loader2, FolderX, Trash2, ChevronRight } from 'lucide-react'; // Import icons
 
+// Define Category interface (consider moving to shared if used elsewhere)
 interface Category {
-  id: number;
+  id: number; // Expecting ID to be a number
   name: string;
 }
 
 interface CategoryListProps {
-  categories: Array<Category>;
+  categories: Array<Category | any>; // Allow 'any' temporarily due to potential incoming inconsistencies handled by filtering
   tasks: Task[];
   isLoading: boolean;
-  onManageCategories: () => void;
+  onManageCategories: () => void; // Callback to open category management
+}
+
+// Helper type for category statistics
+interface CategoryStats {
+  totalTasks: number;
+  completedTasks: number;
+  completionPercentage: number;
 }
 
 const CategoryList: React.FC<CategoryListProps> = ({
   categories,
   tasks,
   isLoading,
-  onManageCategories
+  onManageCategories,
 }) => {
   const navigate = useNavigate();
-  
-  useEffect(() => {
-    console.log('Kategorie otrzymane w CategoryList (useEffect):', categories);
-    console.log('Zadania otrzymane w CategoryList:', tasks);
-  }, [categories, tasks]);
-  
-  // Filtrowanie kategorii, aby upewnić się, że mamy tylko obiekty Category
-  const validCategories = React.useMemo(() => {
-    if (!categories || !Array.isArray(categories)) {
-      console.warn('Kategorie nie są tablicą:', categories);
+
+  // 1. Memoize and sanitize the categories array
+  //    - Filter out invalid entries
+  //    - **Crucially, DO NOT generate random IDs.** Filter out items with invalid IDs instead.
+  const validCategories = useMemo(() => {
+    if (!Array.isArray(categories)) {
+      console.warn('CategoryList: Received non-array for categories:', categories);
       return [];
     }
-    
-    const processed = categories
-      .filter(category => category !== null && typeof category === 'object' && category.name !== undefined)
-      .map(category => {
-        // Upewniamy się, że id jest liczbą
-        let id: number;
-        
-        if (typeof category.id === 'number') {
-          id = category.id;
-        } else {
-          // Próbujemy przekonwertować string na liczbę
-          const parsedId = parseInt(String(category.id), 10);
-          // Jeśli konwersja się nie powiedzie, generujemy losowe id
-          id = isNaN(parsedId) ? Math.floor(Math.random() * 10000) : parsedId;
-        }
-        
-        return {
-          id,
-          name: category.name
-        };
+    // Filter for valid Category objects and use a type predicate
+    return categories.filter(
+      (cat): cat is Category => // Type predicate ensures the output array is Category[]
+        cat != null &&
+        typeof cat === 'object' &&
+        typeof cat.name === 'string' && cat.name.trim() !== '' && // Check for non-empty name
+        typeof cat.id === 'number' && // Enforce ID must be a number
+        !isNaN(cat.id) // Check if it's a valid number (not NaN)
+    );
+  }, [categories]); // Dependency: only recalculate if categories prop changes
+
+  // 2. Memoize the calculation of statistics for all categories
+  const categoryStatsMap = useMemo(() => {
+    const statsMap = new Map<number, CategoryStats>(); // Use category ID as key
+
+    // Add safety check for tasks prop
+    if (!Array.isArray(tasks)) {
+      console.warn('CategoryList: Received non-array for tasks:', tasks);
+      return statsMap; // Return empty map if tasks are invalid
+    }
+
+    validCategories.forEach((category) => {
+      // Find tasks matching by category NAME (as in original code)
+      // Consider if matching by category ID would be more robust if tasks have categoryId
+      const categoryTasks = tasks.filter((task) => task.category === category.name);
+      const totalTasks = categoryTasks.length;
+      const completedTasks = categoryTasks.filter((task) => task.completed).length;
+      const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0; // Round percentage here
+
+      statsMap.set(category.id, { // Store stats using the category ID
+        totalTasks,
+        completedTasks,
+        completionPercentage,
       });
-    
-    console.log('Przetworzone kategorie:', processed);
-    return processed;
-  }, [categories]);
+    });
+    return statsMap;
+  }, [validCategories, tasks]); // Dependencies: recalculate if validCategories or tasks change
 
-  // Obliczanie statystyk dla każdej kategorii
-  const getCategoryStats = (categoryName: string) => {
-    const categoryTasks = tasks.filter(task => task.category === categoryName);
-    const totalTasks = categoryTasks.length;
-    const completedTasks = categoryTasks.filter(task => task.completed).length;
-    const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-    
-    return {
-      totalTasks,
-      completedTasks,
-      completionPercentage
-    };
-  };
+  // --- Render Logic ---
 
-  // Wyświetlanie komunikatu o ładowaniu
+  // Loading State
   if (isLoading) {
     return (
       <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+        <Loader2 className="animate-spin h-12 w-12 text-primary mx-auto" />
         <p className="mt-4 text-gray-600">Ładowanie kategorii...</p>
       </div>
     );
   }
 
-  // Wyświetlanie komunikatu, gdy nie ma kategorii
+  // Empty State (No valid categories found)
   if (validCategories.length === 0) {
     return (
       <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
+        <FolderX className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">Brak kategorii</h3>
-        <p className="mt-1 text-sm text-gray-500">Zacznij od dodania nowej kategorii.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Nie znaleziono żadnych kategorii lub istniejące kategorie mają nieprawidłowe dane.
+        </p>
         <div className="mt-6">
-          <Button onClick={onManageCategories}>
-            Zarządzaj kategoriami
-          </Button>
+          {/* Button to trigger adding/managing categories */}
+          <Button onClick={onManageCategories}>Zarządzaj kategoriami</Button>
         </div>
       </div>
     );
   }
 
-  // Wyświetl listę kategorii
+  // Default State: Display List of Categories
   return (
     <div className="space-y-4">
       {validCategories.map((category) => {
-        const { totalTasks, completedTasks, completionPercentage } = getCategoryStats(category.name);
-        
+        // Retrieve pre-calculated stats using category ID
+        const stats = categoryStatsMap.get(category.id) ?? {
+          totalTasks: 0,
+          completedTasks: 0,
+          completionPercentage: 0,
+        }; // Provide default if somehow missing
+
         return (
-          <div 
-            key={category.id}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:border-primary hover:shadow-md transition-all cursor-pointer"
-            onClick={() => navigate(`/category/${category.id}`)}
+          <div
+            key={category.id} // Use the validated, stable category ID
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6 hover:border-primary hover:shadow-md transition-all cursor-pointer group" // Added group for potential hover effects on children
+            onClick={() => navigate(`/category/${category.id}`)} // Navigate using the stable ID
+            role="link" // Improve semantics
+            aria-label={`Przejdź do kategorii ${category.name}`}
           >
             <div className="flex justify-between items-center mb-2">
-              <h2 className="text-xl font-semibold text-gray-900">{category.name}</h2>
-              <div className="flex items-center">
-                <button
-                  className="text-red-500 hover:text-red-700 p-2"
+              <h2 className="text-xl font-semibold text-gray-800 truncate pr-2"> {/* Added truncate */}
+                {category.name}
+              </h2>
+              <div className="flex items-center space-x-1 flex-shrink-0">
+                 {/* Placeholder for Delete - consider moving logic to manage categories view */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:bg-destructive/10 h-8 w-8" // Use destructive color
                   onClick={(e) => {
-                    e.stopPropagation();
-                    // Tutaj możesz dodać funkcję do usuwania kategorii
+                    e.stopPropagation(); // Prevent navigation
+                    console.log('TODO: Implement delete for category ID:', category.id);
+                    // Example: deleteCategoryMutation.mutate(category.id);
                   }}
+                  title={`Usuń kategorię ${category.name}`} // Accessibility
+                  aria-label={`Usuń kategorię ${category.name}`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5 text-gray-400" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M9 5l7 7-7 7" 
-                  />
-                </svg>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <ChevronRight
+                  className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors"
+                  aria-hidden="true" // Decorative icon
+                 />
               </div>
             </div>
-            
+
             <div className="mt-2">
               <div className="flex justify-between text-sm text-gray-600 mb-1">
-                <span>{completedTasks} z {totalTasks} zadań ukończonych</span>
-                <span>{Math.round(completionPercentage)}%</span>
+                <span>
+                  {stats.completedTasks} z {stats.totalTasks} ukończonych
+                </span>
+                <span>{stats.completionPercentage}%</span>
               </div>
-              <Progress value={completionPercentage} className="h-2" />
+              <Progress value={stats.completionPercentage} className="h-2" />
             </div>
           </div>
         );
       })}
+       {/* Optional: Button to manage categories always visible at the bottom */}
+       <div className="pt-4 text-center">
+           <Button variant="outline" onClick={onManageCategories}>
+               Zarządzaj kategoriami
+           </Button>
+       </div>
     </div>
   );
 };
