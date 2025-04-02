@@ -50,9 +50,9 @@ const TaskItem: React.FC<TaskItemProps> = ({
     const threshold = 60;
     if (Math.abs(transform) > threshold) {
       if (swipeDirection === 'right') {
-        onDelete(task.id);
+        onEdit(task);
       } else {
-        onToggleCompletion(task.id);
+        onDelete(task.id);
       }
     }
     
