@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Task } from '@shared/schema';
 import { Edit, Trash2, CheckCircle, ChevronDown, ChevronUp, Plus } from './icons';
 import { cn } from '@/lib/utils';
@@ -21,7 +22,53 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onCreateFromNote,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  
+  const [touchStart, setTouchStart] = useState(0);
+  const [transform, setTransform] = useState(0);
+  const [swipeDirection, setSwipeDirection] = useState<'left'|'right'|null>(null);
+  const isMobile = useIsMobile();
+
+  // Touch handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isMobile || task.completed) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStart;
+    
+    if (Math.abs(deltaX) > 20) {
+      setTransform(deltaX);
+      setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile || task.completed) return;
+
+    const threshold = 60;
+    if (Math.abs(transform) > threshold) {
+      if (swipeDirection === 'right') {
+        onDelete(task.id);
+      } else {
+        onToggleCompletion(task.id);
+      }
+    }
+    
+    setTouchStart(0);
+    setTransform(0);
+    setSwipeDirection(null);
+  };
+
+  // Prevent scroll during swipe
+  useEffect(() => {
+    document.body.style.overflow = transform !== 0 ? 'hidden' : 'auto';
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [transform]);
+
   // Determine if task is overdue
   const isOverdue = task.dueDate && task.dueDate !== '' ? isDateOverdue(new Date(task.dueDate)) : false;
   
@@ -32,34 +79,45 @@ const TaskItem: React.FC<TaskItemProps> = ({
     return 'border-primary';
   };
 
-  // Determine date text color based on task status
-  const getDateColor = () => {
-    if (task.completed) return 'text-gray-500';
-    if (isOverdue) return 'text-red-500';
-    return 'text-gray-600';
-  };
-
-  // Determine badge variant based on task status
-  const getDateBadgeVariant = () => {
-    if (task.completed) return 'default';
-    if (isOverdue) return 'destructive';
-    if (task.dueDate && task.dueDate !== '' && isDateToday(new Date(task.dueDate))) return 'secondary';
-    return 'outline';
-  };
-
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
 
   return (
-    <li className="bg-white shadow overflow-hidden rounded-md mb-3 list-none">
+    <li className="bg-white shadow overflow-hidden rounded-md mb-3 list-none relative">
+      {/* Swipe action backgrounds */}
+      <div className="absolute inset-0 flex">
+        <div className={cn(
+          'w-1/2 flex items-center justify-end pr-4 transition-colors',
+          swipeDirection === 'right' ? 'bg-red-500' : 'bg-red-500/50'
+        )}>
+          <Trash2 className="h-6 w-6 text-white" />
+        </div>
+        <div className={cn(
+          'w-1/2 flex items-center justify-start pl-4 transition-colors',
+          swipeDirection === 'left' ? 'bg-green-500' : 'bg-green-500/50'
+        )}>
+          <CheckCircle className="h-6 w-6 text-white" />
+        </div>
+      </div>
+
+      {/* Swipeable content */}
       <div 
         className={cn(
-          'border-l-4 px-4 py-4 sm:px-6 cursor-pointer',
+          'border-l-4 px-4 py-4 sm:px-6 cursor-pointer relative bg-white transition-transform',
           getBorderColor()
         )}
-        onClick={toggleExpand}
+        style={{ transform: `translateX(${transform}px)` }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={(e) => {
+          if (transform === 0) {
+            toggleExpand();
+          }
+        }}
       >
+        {/* Rest of the task item content */}
         <div className="flex items-start justify-between">
           <div className="flex items-start space-x-3 min-w-0 flex-1">
             <div className="flex-shrink-0 pt-1">
@@ -92,26 +150,19 @@ const TaskItem: React.FC<TaskItemProps> = ({
                   </Badge>
                   
                   {task.dueDate && task.dueDate !== '' && (
-                    <Badge variant={getDateBadgeVariant()} className="font-normal text-xs">
+                    <Badge variant="outline" className="font-normal text-xs">
                       {formatDate(new Date(task.dueDate))}
                     </Badge>
                   )}
                 </div>
               </div>
-              
-              {/* Always show notes if expanded, or first note if not expanded */}
+
               {task.notes && task.notes.length > 0 && (
                 <div className="mt-2">
-                  <div 
-                    className={cn(
-                      'text-sm',
-                      task.completed ? 'text-gray-500' : 'text-gray-700'
-                    )}
-                  >
+                  <div className="text-sm text-gray-700">
                     <div className="flex items-start">
                       <span className="mr-2 flex-grow">
                         {isExpanded ? (
-                          // Show all notes when expanded
                           <ul className="space-y-2 list-disc pl-5">
                             {task.notes.map((note, index) => (
                               <li key={index} className="text-sm">
@@ -135,7 +186,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
                             ))}
                           </ul>
                         ) : (
-                          // Show only first note when collapsed
                           <div className="flex items-start justify-between group">
                             <span className="flex-grow">{task.notes[0]}</span>
                             {onCreateFromNote && (
@@ -155,7 +205,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
                         )}
                       </span>
                       
-                      {/* Only show expand/collapse button if there are multiple notes */}
                       {task.notes.length > 1 && (
                         <button 
                           onClick={(e) => {
@@ -181,25 +230,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
                   </div>
                 </div>
               )}
-              
-              {/* Status and date information */}
-              <div className="mt-2 flex flex-wrap text-xs text-gray-500 gap-2">
-                {task.completed && task.createdAt && (
-                  <Badge variant="default" className="font-normal text-xs">
-                    Wykonano {formatDate(new Date(task.createdAt))}
-                  </Badge>
-                )}
-                {isOverdue && !task.completed && (
-                  <Badge variant="destructive" className="font-normal text-xs">
-                    Po terminie
-                  </Badge>
-                )}
-                {task.dueDate && task.dueDate !== '' && isDateToday(new Date(task.dueDate)) && !task.completed && (
-                  <Badge variant="secondary" className="font-normal text-xs">
-                    Dzisiaj
-                  </Badge>
-                )}
-              </div>
             </div>
           </div>
           <div className="ml-4 flex-shrink-0 flex space-x-2">
