@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash, Loader2 } from 'lucide-react'; // Removed Edit, Check, X
+import { Trash, Loader2, Edit, Check, X } from 'lucide-react'; // Keep Edit, Check, X for inline edit
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,8 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Removed swipe list imports
+import SwipeableItem from '@/components/ui/swipeable-item'; // Import custom swipe component
+import { updateCategory } from '@/lib/api'; // Keep updateCategory for inline edit
 
+// Interfaces remain the same
 interface Category {
   id: string | number;
   name: string;
@@ -58,7 +60,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedParentId, setSelectedParentId] = useState<string | undefined>(undefined);
   const [categoryToDeleteId, setCategoryToDeleteId] = useState<string | null>(null);
-  // Removed editing state
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null); // Keep editing state
+  const [editedName, setEditedName] = useState(''); // Keep editing state
 
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery<Category[]>({
     queryKey: categoriesQueryKey,
@@ -123,7 +126,30 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
       },
   });
 
-  // Removed update category mutation and edit handlers
+  // Keep update category mutation for inline edit
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      updateCategory(id, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: categoriesQueryKey });
+      queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+      setEditingCategoryId(null);
+      setEditedName('');
+      toast({
+        title: "Kategoria zaktualizowana",
+        description: "Nazwa kategorii została pomyślnie zmieniona.",
+      });
+    },
+    onError: (error: unknown, variables) => {
+      console.error(`Błąd aktualizacji kategorii (ID: ${variables.id}):`, error);
+      const message = error instanceof Error ? error.message : "Nieznany błąd";
+      toast({
+        title: "Błąd aktualizacji",
+        description: `Nie udało się zaktualizować kategorii: ${message}`,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,12 +185,31 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   };
 
   const handleCloseDialog = () => {
-    if (!addCategoryMutation.isPending && !deleteCategoryMutation.isPending) { // Removed update mutation check
+    if (!addCategoryMutation.isPending && !deleteCategoryMutation.isPending && !updateCategoryMutation.isPending) { // Keep update mutation check
       onClose();
     }
   }
 
-  const isMutating = addCategoryMutation.isPending || deleteCategoryMutation.isPending;
+  // Keep edit handlers
+  const handleEditClick = (category: Category) => {
+    setEditingCategoryId(category.id.toString());
+    setEditedName(category.name);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCategoryId(null);
+    setEditedName('');
+  };
+
+  const handleSaveEdit = (categoryId: string) => {
+    if (!editedName.trim()) {
+      toast({ title: "Błąd", description: "Nazwa kategorii nie może być pusta", variant: "destructive" });
+      return;
+    }
+    updateCategoryMutation.mutate({ id: categoryId, name: editedName.trim() });
+  };
+
+  const isMutating = addCategoryMutation.isPending || deleteCategoryMutation.isPending || updateCategoryMutation.isPending; // Keep update mutation check
 
   return (
     <>
@@ -229,38 +274,126 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
             ) : categories.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">Brak zdefiniowanych kategorii.</p>
             ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2"> {/* Reverted to simple div */}
+              <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2"> {/* Use simple div for list container */}
                 {categories.map((category) => {
                   const categoryIdStr = category.id.toString();
-                  // Removed isEditing check
+                  const isEditing = editingCategoryId === categoryIdStr;
+
+                  // Define right actions for swipe
+                  const rightActions = (
+                    <div className="flex h-full">
+                         <Button
+                            variant="ghost"
+                            size="icon"
+                            className="bg-blue-500 text-white rounded-none h-full w-12 flex flex-col items-center justify-center p-1" // Adjust size/padding
+                            onClick={() => handleEditClick(category)} // Use existing handler
+                            aria-label={`Edytuj kategorię ${category.name}`}
+                         >
+                            <Edit className="h-4 w-4 mb-1" />
+                            <span className="text-xs" style={{ fontSize: '0.6rem' }}>Edytuj</span> {/* Smaller text */}
+                         </Button>
+                         <Button
+                            variant="ghost"
+                            size="icon"
+                            className="bg-red-500 text-white rounded-none h-full w-12 flex flex-col items-center justify-center p-1" // Adjust size/padding
+                            onClick={() => handleDeleteCategory(category.id)} // Use existing handler
+                            aria-label={`Usuń kategorię ${category.name}`}
+                         >
+                            <Trash className="h-4 w-4 mb-1" />
+                            <span className="text-xs" style={{ fontSize: '0.6rem' }}>Usuń</span> {/* Smaller text */}
+                         </Button>
+                    </div>
+                  );
 
                   return (
-                    <div // Reverted to simple div
+                    <SwipeableItem // Wrap with custom component
                       key={categoryIdStr}
-                      className="flex items-center justify-between p-2 rounded hover:bg-muted/50"
+                      rightActions={rightActions}
+                      actionWidth={96} // Adjust width for two buttons
+                      threshold={0.3}
+                      className="rounded overflow-hidden" // Apply rounding/overflow to wrapper
+                      blockSwipe={isEditing || isMutating} // Block swipe when editing or mutating
                     >
-                      <div className="flex flex-col text-sm flex-grow mr-2 truncate">
-                        <span>{category.name}</span>
-                        {category.parent_id && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            Nadrzędna: {categoryMap.get(category.parent_id.toString()) || 'Nieznana'}
-                          </span>
+                      {/* Original Item Content */}
+                      <div
+                        className={`flex items-center justify-between p-2 w-full bg-background ${isEditing ? 'bg-muted/60' : ''}`} // Use theme background, remove hover
+                      >
+                        {isEditing ? (
+                          // Keep editing UI
+                          <div className="flex-grow flex items-center space-x-2 mr-2">
+                            <Input
+                              type="text"
+                              value={editedName}
+                              onChange={(e) => setEditedName(e.target.value)}
+                              className="h-8 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEdit(categoryIdStr);
+                                if (e.key === 'Escape') handleCancelEdit();
+                              }}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-green-600 hover:bg-green-100 h-7 w-7"
+                              onClick={() => handleSaveEdit(categoryIdStr)}
+                              disabled={updateCategoryMutation.isPending}
+                            >
+                              {updateCategoryMutation.isPending && updateCategoryMutation.variables?.id === categoryIdStr
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Check className="h-4 w-4" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-gray-500 hover:bg-gray-100 h-7 w-7"
+                              onClick={handleCancelEdit}
+                              disabled={updateCategoryMutation.isPending}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          // Keep display UI
+                          <>
+                            <div className="flex flex-col text-sm flex-grow mr-2 truncate">
+                              <span>{category.name}</span>
+                              {category.parent_id && (
+                                <span className="text-xs text-muted-foreground truncate">
+                                  Nadrzędna: {categoryMap.get(category.parent_id.toString()) || 'Nieznana'}
+                                </span>
+                              )}
+                            </div>
+                            {/* Keep desktop buttons */}
+                            <div className="hidden sm:flex items-center space-x-1 flex-shrink-0">
+                               <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-blue-600 hover:bg-blue-100 h-8 w-8"
+                                  onClick={() => handleEditClick(category)}
+                                  disabled={isMutating}
+                                  title={`Edytuj kategorię ${category.name}`}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                                  onClick={() => handleDeleteCategory(category.id)}
+                                  disabled={isMutating}
+                                  title={`Usuń kategorię ${category.name}`}
+                                >
+                                  {deleteCategoryMutation.isPending && deleteCategoryMutation.variables === categoryIdStr
+                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                    : <Trash className="h-4 w-4" />
+                                  }
+                                </Button>
+                            </div>
+                          </>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive/10 h-8 w-8 flex-shrink-0" // Added flex-shrink-0
-                        onClick={() => handleDeleteCategory(category.id)}
-                        disabled={isMutating}
-                        title={`Usuń kategorię ${category.name}`}
-                      >
-                        {deleteCategoryMutation.isPending && deleteCategoryMutation.variables === categoryIdStr
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : <Trash className="h-4 w-4" />
-                        }
-                      </Button>
-                    </div>
+                    </SwipeableItem>
                   );
                 })}
               </div>

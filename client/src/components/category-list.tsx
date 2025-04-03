@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Loader2, FolderX, Trash2, Edit, Check, X, ChevronRight } from 'lucide-react';
 import { updateCategory, deleteCategory } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
+import SwipeableItem from '@/components/ui/swipeable-item'; // Import the custom component
 
 interface Category {
   id: number;
@@ -147,10 +148,44 @@ const CategoryList: React.FC<CategoryListProps> = ({
         const isEditing = editingCategoryId === category.id;
         const stats = categoryStatsMap.get(category.id) ?? { totalTasks: 0, completedTasks: 0, completionPercentage: 0 };
 
+        // Define right actions for swipe
+        const rightActions = (
+            <div className="flex h-full">
+                 <Button
+                    variant="ghost"
+                    size="icon"
+                    className="bg-blue-500 text-white rounded-none h-full w-16 flex flex-col items-center justify-center p-1" // Adjust size/padding
+                    onClick={(e) => handleEditClick(e, category)}
+                    aria-label={`Edytuj kategorię ${category.name}`}
+                 >
+                    <Edit className="h-4 w-4 mb-1" />
+                    <span className="text-xs">Edytuj</span>
+                 </Button>
+                 <Button
+                    variant="ghost"
+                    size="icon"
+                    className="bg-red-500 text-white rounded-none h-full w-16 flex flex-col items-center justify-center p-1" // Adjust size/padding
+                    onClick={(e) => handleDeleteClick(e, category.id, category.name)}
+                    aria-label={`Usuń kategorię ${category.name}`}
+                 >
+                    <Trash2 className="h-4 w-4 mb-1" />
+                    <span className="text-xs">Usuń</span>
+                 </Button>
+            </div>
+        );
+
         return (
-          <div
-            key={category.id}
-            className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6 transition-all group w-full ${isEditing ? 'border-primary ring-1 ring-primary' : 'hover:border-primary hover:shadow-md cursor-pointer'}`}
+          <SwipeableItem
+             key={category.id}
+             rightActions={rightActions}
+             actionWidth={128} // Total width for two 64px buttons
+             threshold={0.3} // Adjust threshold
+             className="rounded-lg overflow-hidden" // Apply rounding and overflow hidden to the wrapper
+          >
+            {/* Original Item Content */}
+            <div
+              // key removed from here, now on SwipeableItem
+              className={`bg-white border border-gray-200 p-4 md:p-6 transition-all group w-full ${isEditing ? 'border-primary ring-1 ring-primary' : ''}`} // Removed hover styles from inner div
             onClick={isEditing ? undefined : () => navigate(`/category/${category.id}`)}
             role={isEditing ? undefined : "link"}
             aria-label={isEditing ? `Edytowanie kategorii ${category.name}` : `Przejdź do kategorii ${category.name}`}
@@ -175,30 +210,33 @@ const CategoryList: React.FC<CategoryListProps> = ({
               ) : (
                 <h2 className="text-xl font-semibold text-gray-800 truncate pr-2 flex-grow">
                   {category.name}
-                </h2>
-              )}
-              <div className="flex items-center space-x-1 flex-shrink-0">
-                {isEditing ? (
-                  <>
-                    <Button variant="ghost" size="icon" className="text-green-600 hover:bg-green-100 h-8 w-8" onClick={(e) => handleSaveEdit(e, category.id)} title="Zapisz zmiany" aria-label="Zapisz zmiany nazwy kategorii">
+                  </h2>
+                )}
+                 {/* Desktop buttons - hidden on small screens */}
+                <div className="hidden md:flex items-center space-x-1 flex-shrink-0">
+                  {isEditing ? (
+                    <>
+                      <Button variant="ghost" size="icon" className="text-green-600 hover:bg-green-100 h-8 w-8" onClick={(e) => handleSaveEdit(e, category.id)} title="Zapisz zmiany" aria-label="Zapisz zmiany nazwy kategorii">
                       <Check className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon" className="text-gray-500 hover:bg-gray-100 h-8 w-8" onClick={handleCancelEdit} title="Anuluj edycję" aria-label="Anuluj edycję nazwy kategorii">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="ghost" size="icon" className="text-blue-600 hover:bg-blue-100 h-8 w-8" onClick={(e) => handleEditClick(e, category)} title={`Edytuj kategorię ${category.name}`} aria-label={`Edytuj kategorię ${category.name}`}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="icon" className="text-blue-600 hover:bg-blue-100 h-8 w-8" onClick={(e) => handleEditClick(e, category)} title={`Edytuj kategorię ${category.name}`} aria-label={`Edytuj kategorię ${category.name}`}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={(e) => handleDeleteClick(e, category.id, category.name)} title={`Usuń kategorię ${category.name}`} aria-label={`Usuń kategorię ${category.name}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors flex-shrink-0" aria-hidden="true" />
-                  </>
-                )}
-              </div>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors flex-shrink-0" aria-hidden="true" />
+                    </>
+                  )}
+                </div>
+                 {/* Mobile Chevron - always visible unless editing */}
+                 {!isEditing && <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors md:hidden flex-shrink-0" aria-hidden="true" />}
             </div>
             <div className="mt-2">
               <div className="flex justify-between text-sm text-gray-600 mb-1">
@@ -208,6 +246,7 @@ const CategoryList: React.FC<CategoryListProps> = ({
               <Progress value={stats.completionPercentage} className="h-2" />
             </div>
           </div>
+        </SwipeableItem>
         );
       })}
       <div className="pt-4 text-center">
