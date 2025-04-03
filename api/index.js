@@ -14,7 +14,7 @@ const createSupabaseClient = () => createClient(
 
 // Create a simple Express app
 const app = express();
-app.use(express.json());
+// app.use(express.json()); // REMOVED global body parser - let individual files handle it if needed
 
 // Add middleware to handle the "i.map is not a function" error
 app.use((req, res, next) => {
