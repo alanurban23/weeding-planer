@@ -280,7 +280,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   // --- Render ---
 
   const getTitle = () => {
-      if (categoryParam !== undefined) return `Notatki w kategorii: ${categoryParam}`;
+      if (categoryParam !== undefined) return `Notatki w kategorii`;
       if (onlyWithoutCategory) return "Notatki bez kategorii";
       return "Wszystkie Notatki";
   }
@@ -383,7 +383,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
                   ) : (
                     // View Mode
                     <>
-                      <div className="flex-1 break-words mr-2 text-sm pt-1"> {/* Added pt-1 for alignment */}
+                      <div className="flex-1 break-words mr-2 text-sm pt-1 whitespace-pre-wrap"> {/* Added whitespace-pre-wrap */}
                         {note.content}
                       </div>
                       {/* Action Buttons (visible on hover/focus on desktop) */}

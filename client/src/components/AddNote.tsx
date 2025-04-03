@@ -120,6 +120,26 @@ const AddNote: React.FC<AddNoteProps> = ({
                 onChange={(e) => setNoteContent(e.target.value)}
                 className="w-full p-2 border rounded"
                 rows={3} // Give it some initial height
+                onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                    // Check if Enter is pressed without Shift
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault(); // Prevent default form submission or other Enter behavior
+
+                        // Manually insert newline character at cursor position
+                        const textarea = e.currentTarget;
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const newValue = noteContent.substring(0, start) + '\n' + noteContent.substring(end);
+
+                        setNoteContent(newValue);
+
+                        // Move cursor to after the inserted newline
+                        // Use setTimeout to ensure state update has rendered
+                        setTimeout(() => {
+                            textarea.selectionStart = textarea.selectionEnd = start + 1;
+                        }, 0);
+                    }
+                }}
             />
             <div className="flex justify-end">
                 <Button
