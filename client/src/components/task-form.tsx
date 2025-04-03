@@ -160,7 +160,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md h-[95vh] sm:h-auto overflow-y-auto">
+      <DialogContent className="sm:max-w-md h-[100vh] sm:h-auto overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{task ? 'Edytuj zadanie' : 'Dodaj nowe zadanie'}</DialogTitle>
         </DialogHeader>
