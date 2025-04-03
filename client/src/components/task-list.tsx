@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react'; // Import useState
+import { useQuery } from '@tanstack/react-query'; // Import useQuery
 import { Task } from '@shared/schema';
 import TaskItem from './task-item';
+import TaskDetailView from './task-detail-view'; // Import TaskDetailView
 import { Plus, Folder } from './icons';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { apiRequest } from '@/lib/queryClient'; // Import apiRequest
 
 interface Category {
   id: number | string;
@@ -33,6 +36,25 @@ const TaskList: React.FC<TaskListProps> = ({
   onCreateFromNote,
 }) => {
   const navigate = useNavigate();
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<Task | null>(null);
+
+  // Fetch all categories for the detail view
+  const { data: categoriesData = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+    queryFn: () => apiRequest('/api/categories'),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const handleShowDetails = (task: Task) => {
+    setSelectedTaskForDetail(task);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedTaskForDetail(null);
+  };
 
   // If loading, show skeleton loader
   if (isLoading) {
@@ -114,6 +136,7 @@ const TaskList: React.FC<TaskListProps> = ({
                     onToggleCompletion={onToggleTaskCompletion}
                     onEdit={onEditTask}
                     onDelete={onDeleteTask}
+                    onShowDetails={handleShowDetails} // Pass the handler
                     onCreateFromNote={onCreateFromNote}
                   />
                 ))}
@@ -122,6 +145,14 @@ const TaskList: React.FC<TaskListProps> = ({
           ))}
         </div>
       )}
+
+      {/* Render the Task Detail View Modal */}
+      <TaskDetailView
+        show={showDetailModal}
+        onClose={handleCloseDetailModal}
+        task={selectedTaskForDetail}
+        categories={categoriesData}
+      />
     </div>
   );
 };

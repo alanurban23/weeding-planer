@@ -259,7 +259,7 @@ export default function CategoryPage() {
       }
       
       // Sprawdzamy, czy id_category zadania jako string jest równe categoryId jako string
-      if (task.id_category !== undefined && 
+      if (task.id_category !== undefined && task.id_category !== null &&
           task.id_category.toString() === categoryId.toString()) {
         return true;
       }

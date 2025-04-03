@@ -1,7 +1,7 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react'; // Import useEffect
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Task } from '@shared/schema';
-import { Edit, Trash2, CheckCircle, ChevronDown, ChevronUp, Plus } from './icons';
+import { Edit, Trash2, CheckCircle, Plus } from './icons'; // Removed ChevronDown, ChevronUp
 import { cn } from '@/lib/utils';
 // Make sure this import path is correct and the file exports isDateOverdue
 import { formatDate, isDateOverdue } from '@/lib/date-utils';
@@ -13,6 +13,7 @@ interface TaskItemProps {
   onToggleCompletion: (id: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  onShowDetails: (task: Task) => void; // Added prop for showing details
   onCreateFromNote?: (note: string, category: string) => void;
 }
 
@@ -23,9 +24,10 @@ const TaskItem: React.FC<TaskItemProps> = ({
   onToggleCompletion,
   onEdit,
   onDelete,
+  onShowDetails, // Destructure new prop
   onCreateFromNote,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Removed isExpanded state
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [currentX, setCurrentX] = useState<number | null>(null);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -58,7 +60,6 @@ const TaskItem: React.FC<TaskItemProps> = ({
 
   // --- Touch Handlers ---
   const handleTouchStart = (e: React.TouchEvent) => {
-    // ... (handleTouchStart function remains the same)
     if (isActionsVisible) return;
     if (itemRef.current) itemRef.current.style.transition = 'none';
     setTouchStartX(e.touches[0].clientX);
@@ -66,26 +67,42 @@ const TaskItem: React.FC<TaskItemProps> = ({
     setIsSwiping(false);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // ... (handleTouchMove function remains the same)
+  // Define handleTouchMove separately for manual listener attachment
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!isMobile || task.completed || touchStartX === null || isActionsVisible) return;
     const currentTouchX = e.touches[0].clientX;
-    setCurrentX(currentTouchX);
-    const deltaX = currentTouchX - touchStartX;
+    // Use optional chaining for safety, though touchStartX check should prevent null
+    const startX = touchStartX ?? currentTouchX; 
+    const deltaX = currentTouchX - startX;
+
     if (Math.abs(deltaX) > 10) {
       setIsSwiping(true);
-       try { e.preventDefault(); } catch (err) { console.warn("Could not prevent default touch behavior:", err); }
+      // Prevent default scroll behavior
+      try { e.preventDefault(); } catch (err) { console.warn("Could not prevent default touch behavior:", err); } 
       const newTransform = Math.max(-ACTIONS_REVEAL_WIDTH - 20, Math.min(80, deltaX));
       setTransform(newTransform);
-       if (itemRef.current) {
-           itemRef.current.style.transition = 'none';
+      if (itemRef.current) {
+           itemRef.current.style.transition = 'none'; // Ensure transition is off during move
            itemRef.current.style.transform = `translateX(${newTransform}px)`;
        }
     }
-  };
+  }, [isMobile, task.completed, touchStartX, isActionsVisible, currentX]); // Added currentX dependency
+
+  // Effect to add/remove non-passive listener
+  useEffect(() => {
+    const node = itemRef.current;
+    if (node && isMobile) {
+      // Add non-passive listener
+      node.addEventListener('touchmove', handleTouchMove, { passive: false });
+      
+      // Cleanup function to remove listener
+      return () => {
+        node.removeEventListener('touchmove', handleTouchMove);
+      };
+    }
+  }, [handleTouchMove, isMobile]); // Re-run if handler or isMobile changes
 
   const handleTouchEnd = () => {
-    // ... (handleTouchEnd function remains the same)
      if (!isMobile || task.completed || !isSwiping) {
         if(!isActionsVisible) resetSwipe();
         return;
@@ -122,17 +139,12 @@ const TaskItem: React.FC<TaskItemProps> = ({
       e.stopPropagation();
       resetSwipe();
     } else if (!isSwiping && transform === 0) {
-        toggleExpand();
+        // Call onShowDetails instead of toggleExpand
+        onShowDetails(task);
     }
   };
 
-  // --- Toggle Expand ---
-  const toggleExpand = () => {
-    // ... (toggleExpand function remains the same)
-    if (!isActionsVisible) {
-       setIsExpanded(!isExpanded);
-    }
-  };
+  // --- Toggle Expand --- function removed
 
   // --- Determine border color ---
   // Now uses the correctly defined 'isOverdue' variable
@@ -180,7 +192,7 @@ const TaskItem: React.FC<TaskItemProps> = ({
         )}
         style={{ transform: `translateX(${transform}px)` }}
         onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
+        // onTouchMove is now handled by useEffect
         onTouchEnd={handleTouchEnd}
         onClick={handleContentClick}
       >
@@ -237,36 +249,13 @@ const TaskItem: React.FC<TaskItemProps> = ({
                 </div>
               </div>
 
-              {/* Notes Section (Conditional) */}
-              {/* ... (Notes display logic remains the same) ... */}
+              {/* Notes Section (Simplified) */}
               {task.notes && task.notes.length > 0 && (
                 <div className="mt-2 text-sm text-gray-700">
-                   {isExpanded ? (
-                       <ul className="space-y-1 list-disc pl-5">
-                            {task.notes.map((note, index) => <li key={index}>{note}</li>)}
-                       </ul>
-                   ) : (
-                       <p className="truncate">{task.notes[0]}{task.notes.length > 1 ? '...' : ''}</p>
-                   )}
-                   {/* Consider adding the expand/collapse toggle button back here */}
-                   {task.notes.length > 1 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleExpand();
-                          }}
-                          className="ml-1 mt-1 text-gray-400 hover:text-gray-600 flex items-center text-xs"
-                        >
-                          {isExpanded ? (
-                            <><ChevronUp className="h-3 w-3 mr-0.5" /> Zwiń</>
-                          ) : (
-                            <><ChevronDown className="h-3 w-3 mr-0.5" /> Pokaż więcej</>
-                          )}
-                        </button>
-                    )}
+                  {/* Always show truncated first note */}
+                  <p className="truncate">{task.notes[0]}{task.notes.length > 1 ? '...' : ''}</p>
                 </div>
               )}
-
             </div>
           </div>
           {/* Right side: Desktop Edit/Delete Icons */}
