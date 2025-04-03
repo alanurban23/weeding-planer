@@ -175,6 +175,13 @@ export default function Home() {
     }
   }, [tasks, categoriesData]);
 
+  // Function to invalidate categories query
+  const handleCategoryUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+    // Optionally invalidate tasks if category changes affect them (e.g., if task display shows category name)
+    // queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+  };
+
   // Filtrowanie zadań nadchodzących (w ciągu najbliższych 7 dni) i po terminie
   const upcomingAndOverdueTasks = useMemo(() => {
     const today = new Date();
@@ -456,6 +463,7 @@ export default function Home() {
                 tasks={tasks}
                 isLoading={isLoading || isLoadingCategories}
                 onManageCategories={handleOpenCategoryManager}
+                onCategoryUpdate={handleCategoryUpdate} // Pass the handler function
               />
             </div>
           </div>

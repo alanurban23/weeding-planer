@@ -34,7 +34,7 @@ const app = express();
 
 // --- Middleware ---
 app.use(cors());
-app.use(express.json());
+// app.use(express.json()); // Removed global JSON middleware
 
 // --- Helper Function for Parsing Category ID ---
 function parseCategoryId(id_category) {
@@ -144,9 +144,11 @@ app.get('/api/categories/:id', async (req, res) => {
 });
 
 // POST /api/categories - Create a new category
+// REMOVED express.json() middleware - assuming Vercel handles body parsing
 app.post('/api/categories', async (req, res) => {
     try {
-        const { name, parent_id } = req.body;
+        // Vercel might populate req.body automatically
+        const { name, parent_id } = req.body || {}; // Add fallback for safety
         // console.log('POST /api/categories - Body:', req.body);
 
         if (!name || typeof name !== 'string' || name.trim() === '') {
@@ -184,6 +186,59 @@ app.post('/api/categories', async (req, res) => {
         return res.status(500).json({ error: 'Internal Server Error', details: error.message });
     }
 });
+
+// PUT /api/categories/:id - Update a category name
+// REMOVED express.json() middleware - assuming Vercel handles body parsing
+app.put('/api/categories/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Vercel might populate req.body automatically
+        const { name } = req.body || {}; // Add fallback for safety
+        // console.log(`PUT /api/categories/${id} - Body:`, req.body);
+
+        const categoryIdNum = parseCategoryId(id);
+        if (categoryIdNum === null) {
+            return res.status(400).json({ error: 'Valid Category ID parameter is required.' });
+        }
+
+        if (!name || typeof name !== 'string' || name.trim() === '') {
+            return res.status(400).json({ error: 'Category name is required for update.' });
+        }
+
+        const categoryToUpdate = {
+            name: name.trim(),
+        };
+
+        const { data, error, status } = await supabase
+            .from(CATEGORIES_TABLE)
+            .update(categoryToUpdate)
+            .eq('id', categoryIdNum)
+            .select()
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ error: 'Category not found for update.' });
+            }
+            // Handle other potential errors like unique constraint violations if names must be unique
+            console.error(`Supabase PUT Category Error (ID: ${id}):`, error);
+            return res.status(status || 500).json({ error: 'Failed to update category', details: error.message });
+        }
+
+        // console.log(`Category ID ${id} updated.`);
+        const formattedCategory = { // Format output
+            ...data,
+            id: parseCategoryId(data.id) ?? data.id,
+            parent_id: parseCategoryId(data.parent_id)
+         };
+        return res.status(200).json(formattedCategory);
+
+    } catch (error) {
+        console.error(`PUT /api/categories/:id Error:`, error);
+        return res.status(500).json({ error: 'Internal Server Error', details: error.message });
+    }
+});
+
 
 // DELETE /api/categories/:id - Delete a category
 app.delete('/api/categories/:id', async (req, res) => {

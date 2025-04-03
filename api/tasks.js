@@ -32,7 +32,7 @@ const app = express();
 
 // --- Middleware ---
 app.use(cors());
-app.use(express.json());
+// app.use(express.json()); // Removed global JSON middleware
 
 // --- Helper Function for Parsing Category ID (from previous optimization) ---
 function parseCategoryId(id_category) {
@@ -227,9 +227,11 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 // POST /api/tasks
+// REMOVED express.json() - assuming Vercel handles body parsing
 app.post('/api/tasks', async (req, res) => {
   try {
-    const { title, notes, completed, dueDate, id_category } = req.body;
+    // Vercel might populate req.body automatically, add fallback
+    const { title, notes, completed, dueDate, id_category } = req.body || {};
     // console.log('POST /api/tasks - Body:', req.body);
 
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -290,10 +292,12 @@ app.get('/api/tasks/:id', async (req, res) => {
 
 
 // PUT /api/tasks/:id  (Using PUT for full replacement semantics, PATCH for partial)
+// REMOVED express.json() - assuming Vercel handles body parsing
 app.put('/api/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, notes, completed, dueDate, id_category } = req.body; // Extract expected fields
+    // Vercel might populate req.body automatically, add fallback
+    const { title, notes, completed, dueDate, id_category } = req.body || {}; // Extract expected fields
     // console.log(`PUT /api/tasks/${id} - Body:`, req.body);
 
     if (!id || isNaN(parseInt(id, 10))) return res.status(400).json({ error: 'Valid Task ID parameter is required.' });
@@ -343,6 +347,7 @@ app.put('/api/tasks/:id', async (req, res) => {
 });
 
 // PATCH /api/tasks/:id/toggle
+// REMOVED express.json() - assuming Vercel handles body parsing (doesn't use body anyway)
 app.patch('/api/tasks/:id/toggle', async (req, res) => {
     try {
         const { id } = req.params;

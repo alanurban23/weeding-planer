@@ -98,6 +98,23 @@ export const addCategory = async (name: string): Promise<Category> => {
     return response.json();
 };
 
+export const updateCategory = async (id: string, name: string): Promise<Category> => {
+    const response = await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+        // Consider more specific error handling based on status code
+        const errorBody = await response.text();
+        console.error(`Error updating category ${id}: ${response.status} - ${errorBody}`);
+        throw new Error(`Błąd podczas aktualizacji kategorii: ${response.statusText}`);
+    }
+    return response.json();
+};
+
 export const deleteCategory = async (id: string): Promise<void> => {
     const response = await fetch(`/api/categories/${id}`, {
         method: 'DELETE',
