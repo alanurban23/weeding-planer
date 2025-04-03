@@ -483,6 +483,8 @@ export default function CategoryPage() {
         onClose={handleCloseModal}
         onSave={handleSaveTask}
         task={editingTask}
+        // Przekazujemy ID bieżącej kategorii jako domyślne tylko przy dodawaniu nowego zadania
+        defaultCategoryId={!editingTask ? categoryId : undefined} 
         categories={category && category.id && category.name ? [{ id: category.id, name: category.name }] : []}
         onCreateFromNote={handleCreateFromNote}
       />

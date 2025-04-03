@@ -34,6 +34,7 @@ interface TaskFormProps {
   onSave: (task: EditingTask) => void;
   task: Task | null;
   categories: Array<Category>;
+  defaultCategoryId?: number | string | null; // Dodano nową właściwość
   onCreateFromNote?: (note: string, category: string | number) => void; // Made optional
 }
 
@@ -43,6 +44,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   onSave,
   task,
   categories,
+  defaultCategoryId, // Pobieramy nową właściwość
   onCreateFromNote,
 }) => {
   const [editingTask, setEditingTask] = useState<EditingTask>({
@@ -78,8 +80,10 @@ const TaskForm: React.FC<TaskFormProps> = ({
   };
 
   const getCategoryNameById = (id?: string | number): string => {
-    if (id === undefined) return '';
-    return categoryMap.get(id.toString()) || id.toString();
+    // Dodano sprawdzenie null i undefined przed wywołaniem toString()
+    if (id === undefined || id === null) return ''; 
+    const idString = id.toString();
+    return categoryMap.get(idString) || idString;
   };
 
   useEffect(() => {
@@ -98,15 +102,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
       setEditingTask({
         id: '',
         title: '',
-        category: '',
-        id_category: undefined,
+        // Usunięto zduplikowane 'category' i 'id_category'
         notes: [],
-        dueDate: null
+        dueDate: null,
+        // Ustawiamy domyślną kategorię, jeśli jest przekazana i dodajemy nowe zadanie
+        category: defaultCategoryId !== undefined && defaultCategoryId !== null ? defaultCategoryId : '',
+        id_category: typeof defaultCategoryId === 'number' ? defaultCategoryId : undefined
       });
     }
     setIsCustomCategory(false);
     setNewCategory('');
-  }, [task]);
+  }, [task, defaultCategoryId]); // Dodano defaultCategoryId do zależności useEffect
 
   const handleCategoryChange = (value: string) => {
     if (value === 'new') {
