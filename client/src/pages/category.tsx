@@ -19,6 +19,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+// Removed icon imports as they are now in GlobalFab
+import { GlobalFab } from '@/components/global-fab'; // Import GlobalFab
 
 // Definicja typu dla kategorii
 interface Category {
@@ -30,11 +38,10 @@ interface Category {
 export default function CategoryPage() {
   const navigate = useNavigate();
   const { categoryId: categoryIdParam } = useParams<{ categoryId: string }>();
-  
+
   // Konwersja ID kategorii na liczbę lub string
   const categoryId = useMemo(() => {
     if (!categoryIdParam) return null;
-    
     try {
       const parsedId = parseInt(categoryIdParam, 10);
       if (!isNaN(parsedId)) {
@@ -44,8 +51,6 @@ export default function CategoryPage() {
     } catch (e) {
       console.error("Błąd podczas konwersji ID kategorii:", e);
     }
-    
-    // Jeśli ID nie jest liczbą, nie przekierowujemy od razu, spróbujemy znaleźć kategorię po nazwie
     console.warn(`ID kategorii "${categoryIdParam}" nie jest liczbą, ale spróbujemy znaleźć kategorię`);
     return categoryIdParam;
   }, [categoryIdParam]) as number | null; // Wymuszamy typ number | null
@@ -56,9 +61,17 @@ export default function CategoryPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showAddNoteForm, setShowAddNoteForm] = useState(false); // Lifted state
   const { toast } = useToast();
 
-  // Pobieranie kategorii
+  // Pobieranie WSZYSTKICH kategorii (dla TaskForm)
+  const allCategoriesQuery = useQuery<{id: string | number, name: string}[]>({
+    queryKey: ['/api/categories'],
+    queryFn: () => apiRequest('/api/categories')
+  });
+  const allCategories = allCategoriesQuery.data ?? [];
+
+  // Pobieranie bieżącej kategorii
   const { data: category, isLoading: isLoadingCategory, error: categoryError } = useQuery<Category>({
     queryKey: ['/api/categories', categoryId],
     enabled: !!categoryId,
@@ -96,11 +109,9 @@ export default function CategoryPage() {
     staleTime: 0, // Always consider data stale to force refetch
     queryFn: async () => {
       try {
-        // Pobierz wszystkie kategorie
         const allCategories = await apiRequest('/api/categories');
-        // Filtruj tylko te, które mają parent_id równy bieżącemu categoryId
-        return allCategories.filter((cat: Category) => 
-          cat.parent_id !== null && 
+        return allCategories.filter((cat: Category) =>
+          cat.parent_id !== null &&
           String(cat.parent_id) === String(categoryId)
         );
       } catch (error) {
@@ -119,7 +130,6 @@ export default function CategoryPage() {
     queryKey: ['/api/tasks', categoryId],
     queryFn: () => {
       if (categoryId === null) return Promise.resolve([]);
-      // Pobieramy wszystkie zadania, a potem filtrujemy je po stronie klienta
       return apiRequest(`/api/tasks`, 'GET');
     },
     enabled: categoryId !== null,
@@ -190,7 +200,8 @@ export default function CategoryPage() {
   const deleteCategoryMutation = useMutation({
     mutationFn: () => {
       if (categoryId === null) return Promise.resolve(null);
-      return apiRequest(`/api/categories?id=${categoryId}`, 'DELETE');
+      // Poprawiono endpoint usuwania kategorii
+      return apiRequest(`/api/categories/${categoryId}`, 'DELETE'); 
     },
     onSuccess: () => {
       toast({
@@ -198,6 +209,7 @@ export default function CategoryPage() {
         description: 'Kategoria została usunięta',
         duration: 3000,
       });
+      queryClient.invalidateQueries({ queryKey: ['/api/categories'] }); // Invalidate categories list on home
       navigate('/');
     },
     onError: (error: Error) => {
@@ -231,268 +243,179 @@ export default function CategoryPage() {
   }
 
   // Grupowanie zadań według kategorii
-  const groupedTasks = React.useMemo(() => {
+  const groupedTasks = useMemo(() => {
     if (!tasks || tasks.length === 0) return {};
-    
-    console.log('Wszystkie zadania:', tasks);
-    console.log('Kategoria ID z URL:', categoryId, typeof categoryId);
-    console.log('Nazwa kategorii:', categoryName);
-    
-    // Filtrujemy zadania, aby pokazać tylko te z bieżącej kategorii
     const filteredTasks = tasks.filter(task => {
-      // Jeśli nie mamy ID kategorii, nie możemy filtrować
       if (categoryId === null) return false;
-      
-      // Konwertujemy id_category zadania na liczbę, jeśli to string
-      const taskCategoryId = typeof task.id_category === 'string' 
-        ? parseInt(task.id_category, 10) 
+      const taskCategoryId = typeof task.id_category === 'string'
+        ? parseInt(task.id_category, 10)
         : (typeof task.id_category === 'number' ? task.id_category : null);
-      
-      // Sprawdzamy, czy ID kategorii zadania jest równe ID kategorii z URL
-      if (taskCategoryId !== null && taskCategoryId === categoryId) {
-        return true;
-      }
-      
-      // Sprawdzamy, czy nazwa kategorii zadania jest równa nazwie kategorii
-      if (task.category && categoryName && task.category === categoryName) {
-        return true;
-      }
-      
-      // Sprawdzamy, czy id_category zadania jako string jest równe categoryId jako string
-      if (task.id_category !== undefined && task.id_category !== null &&
-          task.id_category.toString() === categoryId.toString()) {
-        return true;
-      }
-      
+      if (taskCategoryId !== null && taskCategoryId === categoryId) return true;
+      if (task.category && categoryName && task.category === categoryName) return true;
+      if (task.id_category !== undefined && task.id_category !== null && task.id_category.toString() === categoryId.toString()) return true;
       return false;
     });
-    
-    console.log('Przefiltrowane zadania:', filteredTasks);
-    
-    // W widoku kategorii wszystkie zadania są w jednej grupie (nazwa kategorii)
-    return {
-      [categoryName || `Kategoria #${categoryId}`]: filteredTasks
-    };
+    return { [categoryName || `Kategoria #${categoryId}`]: filteredTasks };
   }, [tasks, categoryName, categoryId]);
 
   // Mutacja do dodawania zadania
   const addTaskMutation = useMutation({
     mutationFn: (task: EditingTask) => {
-      // Upewnij się, że id_category jest liczbą
-      const taskToAdd = {
-        ...task,
-        id_category: categoryId
-      };
+      const taskToAdd = { ...task, id_category: categoryId };
       return apiRequest('/api/tasks', 'POST', taskToAdd);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tasks', categoryId] });
       setShowAddTaskModal(false);
-      toast({
-        title: 'Sukces',
-        description: 'Zadanie zostało dodane',
-        duration: 3000,
-      });
+      toast({ title: 'Sukces', description: 'Zadanie zostało dodane', duration: 3000 });
     },
     onError: (error: Error) => {
       console.error('Błąd dodawania zadania:', error);
-      toast({
-        title: 'Błąd',
-        description: 'Nie udało się dodać zadania',
-        variant: 'destructive',
-        duration: 3000,
-      });
+      toast({ title: 'Błąd', description: 'Nie udało się dodać zadania', variant: 'destructive', duration: 3000 });
     }
   });
 
   // Mutacja do aktualizacji zadania
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }: { id: string, data: Partial<EditingTask> }) => {
-      // Upewnij się, że id_category jest liczbą, jeśli jest przekazywane
       const taskUpdate = { ...data };
       if (taskUpdate.id_category !== undefined) {
         if (typeof taskUpdate.id_category === 'string') {
           const numericId = parseInt(taskUpdate.id_category, 10);
-          if (!isNaN(numericId)) {
-            taskUpdate.id_category = numericId;
-          } else {
-            taskUpdate.id_category = undefined;
-          }
+          taskUpdate.id_category = !isNaN(numericId) ? numericId : undefined;
         }
       }
-      
       return apiRequest(`/api/tasks/${id}`, 'PUT', taskUpdate);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tasks', categoryId] });
       setShowAddTaskModal(false);
-      toast({
-        title: 'Sukces',
-        description: 'Zadanie zostało zaktualizowane',
-        duration: 3000,
-      });
+      toast({ title: 'Sukces', description: 'Zadanie zostało zaktualizowane', duration: 3000 });
     },
     onError: (error: Error) => {
       console.error('Błąd aktualizacji zadania:', error);
-      toast({
-        title: 'Błąd',
-        description: 'Nie udało się zaktualizować zadania',
-        variant: 'destructive',
-        duration: 3000,
-      });
+      toast({ title: 'Błąd', description: 'Nie udało się zaktualizować zadania', variant: 'destructive', duration: 3000 });
     }
   });
 
   const handleToggleTaskCompletion = (id: string) => {
     const task = tasks.find((t: Task) => t.id === id);
     if (task) {
-      updateTaskMutation.mutate({
-        id,
-        data: { completed: !task.completed }
-      });
+      updateTaskMutation.mutate({ id, data: { completed: !task.completed } });
     }
   };
 
   const handleSaveTask = (taskData: EditingTask) => {
     if (editingTask) {
-      updateTaskMutation.mutate({
-        id: editingTask.id,
-        data: taskData
-      });
+      updateTaskMutation.mutate({ id: editingTask.id, data: taskData });
     } else {
-      addTaskMutation.mutate({
-        ...taskData,
-        id_category: categoryId
-      });
+      addTaskMutation.mutate({ ...taskData, id_category: categoryId });
     }
   };
 
   const handleCreateFromNote = (note: string, category: string | number) => {
     const newTask: EditingTask = {
-      id: '', 
+      id: '',
       title: note.length > 50 ? note.substring(0, 47) + '...' : note,
       notes: [note],
       dueDate: null,
       id_category: categoryId,
       completed: false
     };
-    
     addTaskMutation.mutate(newTask);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-<header className="bg-white shadow">
-  <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-    {/* Mobile header layout - completely stacked for clean mobile experience */}
-    <div className="md:hidden flex flex-col">
-      <Button 
-        variant="outline" 
-        onClick={() => navigate('/')} 
-        className="self-start mb-4 px-4 py-2"
-      >
-        &larr; Wróć
-      </Button>
-      
-      <h1 className="text-xl font-bold text-gray-900 mb-6 text-center">
-        {categoryName || `Kategoria #${categoryId}`}
-      </h1>
-      
-      <div className="flex flex-col gap-3 mb-2">
-        <Button 
-          onClick={handleAddTask} 
-          className="w-full py-3"
-        >
-          Dodaj zadanie
-        </Button>
-        <Button 
-          variant="destructive" 
-          onClick={handleDeleteCategory} 
-          className="w-full py-3"
-        >
-          Usuń kategorię
-        </Button>
-      </div>
-    </div>
-    
-    {/* Desktop header layout - unchanged */}
-    <div className="hidden md:flex md:justify-between md:items-center">
-      <div>
-        <Button variant="outline" onClick={() => navigate('/')}>
-          &larr; Wróć
-        </Button>
-        <h1 className="text-2xl font-bold text-gray-900 mt-2">
-          {categoryName || `Kategoria #${categoryId}`}
-        </h1>
-      </div>
-      <div className="flex space-x-2">
-        <Button onClick={handleAddTask}>Dodaj zadanie</Button>
-        <Button variant="destructive" onClick={handleDeleteCategory}>Usuń kategorię</Button>
-      </div>
-    </div>
-  </div>
-</header>
-      
+    // Added pb-24 to prevent content overlap with FAB
+    <div className="min-h-screen bg-gray-100 pb-24">
+      <header className="bg-white shadow sticky top-0 z-40"> {/* Made header sticky */}
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+          {/* Mobile header layout */}
+          <div className="md:hidden flex flex-col">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/')}
+              className="self-start mb-4 px-4 py-2"
+            >
+              &larr; Wróć
+            </Button>
+            <h1 className="text-xl font-bold text-gray-900 mb-6 text-center">
+              {categoryName || `Kategoria #${categoryId}`}
+            </h1>
+            {/* Removed action buttons from mobile header */}
+          </div>
+
+          {/* Desktop header layout */}
+          <div className="hidden md:flex md:justify-between md:items-center">
+            <div className="flex items-center gap-2"> {/* Added gap for spacing */}
+              <Button variant="outline" onClick={() => navigate('/')}>
+                &larr; Wróć do listy kategorii
+              </Button>
+              {/* Added Home Button */}
+              <Button variant="outline" onClick={() => navigate('/')} title="Przejdź do strony głównej"> 
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                 </svg>
+              </Button>
+              <h1 className="text-2xl font-bold text-gray-900 mt-2 ml-2"> {/* Added margin */}
+                {categoryName || `Kategoria #${categoryId}`}
+              </h1>
+            </div>
+             {/* Removed action buttons from desktop header */}
+          </div>
+        </div>
+      </header>
+
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="grid grid-cols-1 gap-6">
             <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Notatki</h2>
-                <Button 
-                  onClick={() => setShowCategoryManager(true)}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Dodaj kategorię
-                </Button>
-              </div>
-              <NotesSection 
-                category={categoryName} 
+              {/* Removed Add Category button from Notes header */}
+              <h2 className="text-xl font-semibold mb-4">Notatki</h2>
+              <NotesSection
+                category={categoryName}
                 id_category={categoryId}
                 onCreateFromNote={handleCreateFromNote}
+                showAddNoteForm={showAddNoteForm} // Pass state
+                setShowAddNoteForm={setShowAddNoteForm} // Pass setter
               />
             </div>
-            
+
             <div>
               <h2 className="text-xl font-semibold mb-4">Zadania i podkategorie</h2>
-              <Button onClick={handleAddTask} className="mb-4">Dodaj zadanie</Button>
-              
-              <TaskList 
+              {/* Removed Add Task button from Tasks header */}
+              <TaskList
                 groupedTasks={groupedTasks}
                 subcategories={subcategories}
                 isLoading={isLoadingTasks || isLoadingSubcategories}
                 onToggleTaskCompletion={handleToggleTaskCompletion}
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
-                onAddTask={handleAddTask}
+                onAddTask={handleAddTask} // Keep for potential internal use in TaskList? Revisit if needed.
                 onCreateFromNote={handleCreateFromNote}
               />
             </div>
           </div>
         </div>
       </main>
-      
+
       <TaskForm
         show={showAddTaskModal}
         onClose={handleCloseModal}
         onSave={handleSaveTask}
         task={editingTask}
-        // Przekazujemy ID bieżącej kategorii jako domyślne tylko przy dodawaniu nowego zadania
-        defaultCategoryId={!editingTask ? categoryId : undefined} 
-        categories={category && category.id && category.name ? [{ id: category.id, name: category.name }] : []}
+        defaultCategoryId={!editingTask ? categoryId : undefined}
+        // Pass all categories to the form for selection using data from the new query
+        categories={allCategories.map((c: { id: string | number; name: string }) => ({ id: c.id, name: c.name }))} 
         onCreateFromNote={handleCreateFromNote}
       />
-      
+
       {showCategoryManager && (
-        <CategoryManager 
-          isOpen={showCategoryManager} 
-          onClose={() => setShowCategoryManager(false)} 
+        <CategoryManager
+          isOpen={showCategoryManager}
+          onClose={() => setShowCategoryManager(false)}
           onCategoryAdded={() => {
             queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
             queryClient.invalidateQueries({ queryKey: ['/api/categories/subcategories', categoryId] });
@@ -500,7 +423,7 @@ export default function CategoryPage() {
           }}
         />
       )}
-      
+
       <AlertDialog open={showDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -515,6 +438,15 @@ export default function CategoryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Use GlobalFab component */}
+      <GlobalFab
+        onAddTask={handleAddTask}
+        onAddNote={() => setShowAddNoteForm(true)}
+        onManageCategories={() => setShowCategoryManager(true)}
+        onDeleteCategory={handleDeleteCategory}
+        showDeleteCategory={true} // Always show delete option on category page
+      />
     </div>
   );
 }

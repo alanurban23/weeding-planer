@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // Corrected import
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ import CategoryManager from '@/components/category-manager';
 import CategoryList from '@/components/category-list';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GlobalFab } from '@/components/global-fab'; // Import GlobalFab
 
 export default function Home() {
   const { toast } = useToast();
@@ -37,6 +38,7 @@ export default function Home() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showAddNoteFormHome, setShowAddNoteFormHome] = useState(false); // Added state
 
   // Fetch tasks
   const { data: tasks = [], isLoading } = useQuery<Task[]>({
@@ -59,7 +61,7 @@ export default function Home() {
 
   // Add task mutation
   const addTaskMutation = useMutation({
-    mutationFn: (task: EditingTask) => 
+    mutationFn: (task: EditingTask) =>
       apiRequest('/api/tasks', 'POST', task),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -80,7 +82,7 @@ export default function Home() {
 
   // Update task mutation
   const updateTaskMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<EditingTask> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<EditingTask> }) =>
       apiRequest(`/api/tasks/${id}`, 'PATCH', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -102,7 +104,7 @@ export default function Home() {
 
   // Delete task mutation
   const deleteTaskMutation = useMutation({
-    mutationFn: (id: string) => 
+    mutationFn: (id: string) =>
       apiRequest(`/api/tasks/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -122,7 +124,7 @@ export default function Home() {
 
   // Toggle task completion mutation
   const toggleTaskMutation = useMutation({
-    mutationFn: (id: string) => 
+    mutationFn: (id: string) =>
       apiRequest(`/api/tasks/${id}/toggle`, 'PATCH'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
@@ -137,58 +139,35 @@ export default function Home() {
   });
 
   // Wyodrębnianie unikalnych kategorii z zadań
-  const uniqueCategories = React.useMemo<Array<{ id: number; name: string }>>(() => {
-    // Debugowanie
+  const uniqueCategories = useMemo<Array<{ id: number; name: string }>>(() => {
     console.log('Dane kategorii:', categoriesData);
-    
     try {
-      // Jeśli mamy kategorie z API, używamy ich bezpośrednio
       if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
         console.log('Używam kategorii z API:', categoriesData);
-        // Zwracamy pełne obiekty kategorii z id i name, upewniając się, że id jest liczbą
         return categoriesData
           .filter(category => category.id !== undefined)
           .map(category => {
-            // Upewniamy się, że id jest liczbą
-            const numericId = typeof category.id === 'string' 
-              ? parseInt(category.id, 10) 
+            const numericId = typeof category.id === 'string'
+              ? parseInt(category.id, 10)
               : (typeof category.id === 'number' ? category.id : NaN);
-            
-            // Jeśli nie mogliśmy przekonwertować id na liczbę, generujemy losowe id
             const id = isNaN(numericId) ? Math.floor(Math.random() * 10000) : numericId;
-            
-            return {
-              id,
-              name: category.name
-            };
+            return { id, name: category.name };
           });
       }
-      
-      // Jako fallback, pobieramy unikalne kategorie z zadań
       const taskCategories = Array.from(new Set(tasks
         .map(task => task.id_category !== undefined ? task.id_category : task.category)
         .filter(category => category !== undefined && category !== null)
       ));
       console.log('Kategorie z zadań:', taskCategories);
-      
-      // Konwertujemy nazwy kategorii na obiekty z id i name
       return taskCategories.map(category => {
-        // Upewniamy się, że id jest liczbą
         let id: number;
-        
         if (typeof category === 'number') {
           id = category;
         } else {
-          // Próbujemy przekonwertować string na liczbę
           const parsedId = parseInt(String(category), 10);
-          // Jeśli konwersja się nie powiedzie, generujemy losowe id
           id = isNaN(parsedId) ? Math.floor(Math.random() * 10000) : parsedId;
         }
-        
-        return {
-          id,
-          name: String(category)
-        };
+        return { id, name: String(category) };
       });
     } catch (error) {
       console.error('Błąd podczas przetwarzania kategorii:', error);
@@ -197,45 +176,35 @@ export default function Home() {
   }, [tasks, categoriesData]);
 
   // Filtrowanie zadań nadchodzących (w ciągu najbliższych 7 dni) i po terminie
-  const upcomingAndOverdueTasks = React.useMemo(() => {
+  const upcomingAndOverdueTasks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
-    
     const filteredTasks = tasks.filter(task => {
       if (!task.dueDate || task.completed) return false;
-      
       const dueDate = new Date(task.dueDate);
       dueDate.setHours(0, 0, 0, 0);
-      
-      // Zadania po terminie lub w ciągu najbliższych 7 dni
       return dueDate <= nextWeek;
     }).sort((a, b) => {
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
-    
     return filteredTasks;
   }, [tasks]);
 
   // Grupowanie zadań nadchodzących i po terminie
-  const groupedUpcomingTasks = React.useMemo(() => {
+  const groupedUpcomingTasks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const overdue: Task[] = [];
     const today_tasks: Task[] = [];
     const upcoming: Task[] = [];
-    
     for (const task of upcomingAndOverdueTasks) {
-      if (!task.dueDate) continue; // Pomijamy zadania bez daty
-      
+      if (!task.dueDate) continue;
       const dueDate = new Date(task.dueDate);
       dueDate.setHours(0, 0, 0, 0);
-      
       if (dueDate < today) {
         overdue.push(task);
       } else if (dueDate.getTime() === today.getTime()) {
@@ -244,7 +213,6 @@ export default function Home() {
         upcoming.push(task);
       }
     }
-    
     return { overdue, today: today_tasks, upcoming };
   }, [upcomingAndOverdueTasks]);
 
@@ -284,7 +252,7 @@ export default function Home() {
       addTaskMutation.mutate(task);
     }
   };
-  
+
   // Create task from note
   const handleCreateFromNote = (note: string, category: string | number) => {
     const newTask: EditingTask = {
@@ -295,9 +263,6 @@ export default function Home() {
       completed: false,
       dueDate: null,
     };
-    
-    // Po kliknięciu w notatkę wewnątrz edycji zadania czy NotesSection, tworzymy z niej nowe zadanie
-    // i otwieramy formularz z wypełnionymi danymi
     setEditingTask(newTask as unknown as Task);
     setShowAddTaskModal(true);
   };
@@ -319,39 +284,44 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-<header className="bg-white shadow">
-  <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-    {/* Mobile header layout */}
-    <div className="md:hidden">
-      <h1 className="text-xl font-bold text-gray-900 mb-4">
-        CodeNinja - Planer Weselny
-      </h1>
-      <Button 
-        onClick={() => setShowCategoryManager(true)} 
-        className="w-full mb-2"
-      >
-        Zarządzaj kategoriami
-      </Button>
-    </div>
-    
-    {/* Desktop header layout - unchanged */}
-    <div className="hidden md:flex md:justify-between md:items-center">
-      <h1 className="text-3xl font-bold text-gray-900">
-        CodeNinja - Planer Weselny
-      </h1>
-      <Button onClick={() => setShowCategoryManager(true)}>
-        Zarządzaj kategoriami
-      </Button>
-    </div>
-  </div>
-</header>
+      <header className="bg-white shadow">
+        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+          {/* Mobile header layout */}
+          <div className="md:hidden">
+            <h1 className="text-xl font-bold text-gray-900 mb-4">
+              CodeNinja - Planer Weselny
+            </h1>
+            <Button
+              onClick={() => setShowCategoryManager(true)}
+              className="w-full mb-2"
+            >
+              Zarządzaj kategoriami
+            </Button>
+          </div>
+
+          {/* Desktop header layout - unchanged */}
+          <div className="hidden md:flex md:justify-between md:items-center">
+            <h1 className="text-3xl font-bold text-gray-900">
+              CodeNinja - Planer Weselny
+            </h1>
+            <Button onClick={() => setShowCategoryManager(true)}>
+              Zarządzaj kategoriami
+            </Button>
+          </div>
+        </div>
+      </header>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           <div className="grid grid-cols-1 gap-6">
             {/* Sekcja notatek */}
-            <NotesSection onCreateFromNote={handleCreateFromNote} onlyWithoutCategory={true} />
-            
+            <NotesSection
+              onCreateFromNote={handleCreateFromNote}
+              onlyWithoutCategory={true}
+              showAddNoteForm={showAddNoteFormHome} // Pass state
+              setShowAddNoteForm={setShowAddNoteFormHome} // Pass setter
+            />
+
             {/* Zadania nadchodzące i po terminie */}
             <Card className="border-t-4 border-t-primary">
               <CardHeader className="pb-2">
@@ -386,7 +356,7 @@ export default function Home() {
                         <h3 className="text-sm font-medium text-red-500 mb-2">Po terminie:</h3>
                         <div className="space-y-2">
                           {groupedUpcomingTasks.overdue.map(task => (
-                            <div 
+                            <div
                               key={task.id}
                               className="flex items-center justify-between p-3 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                             >
@@ -411,13 +381,13 @@ export default function Home() {
                         </div>
                       </div>
                     )}
-                    
+
                     {groupedUpcomingTasks.today.length > 0 && (
                       <div className="mb-4">
                         <h3 className="text-sm font-medium text-blue-500 mb-2">Na dzisiaj:</h3>
                         <div className="space-y-2">
                           {groupedUpcomingTasks.today.map(task => (
-                            <div 
+                            <div
                               key={task.id}
                               className="flex items-center justify-between p-3 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                             >
@@ -442,13 +412,13 @@ export default function Home() {
                         </div>
                       </div>
                     )}
-                    
+
                     {groupedUpcomingTasks.upcoming.length > 0 && (
                       <div>
                         <h3 className="text-sm font-medium text-amber-500 mb-2">Nadchodzące:</h3>
                         <div className="space-y-2">
                           {groupedUpcomingTasks.upcoming.map(task => (
-                            <div 
+                            <div
                               key={task.id}
                               className="flex items-center justify-between p-3 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
                             >
@@ -477,15 +447,15 @@ export default function Home() {
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Lista kategorii */}
             <div className="mt-6">
               <h2 className="text-xl font-semibold mb-4">Kategorie zadań</h2>
-              <CategoryList 
-                categories={uniqueCategories} 
-                tasks={tasks} 
+              <CategoryList
+                categories={uniqueCategories}
+                tasks={tasks}
                 isLoading={isLoading || isLoadingCategories}
-                onManageCategories={handleOpenCategoryManager} 
+                onManageCategories={handleOpenCategoryManager}
               />
             </div>
           </div>
@@ -522,14 +492,23 @@ export default function Home() {
       <CategoryManager
         isOpen={showCategoryManager}
         onClose={() => setShowCategoryManager(false)}
-        existingCategories={uniqueCategories}
+        // Removed existingCategories prop
         onCategoryAdded={() => {
           queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
         }}
       />
 
       {/* Mobile bottom navigation */}
-      <MobileNavigation onAddTask={handleAddTask} />
+      {/* <MobileNavigation onAddTask={handleAddTask} /> */} {/* Replaced by GlobalFab */}
+
+      {/* Use GlobalFab component */}
+      <GlobalFab
+        onAddTask={handleAddTask}
+        onAddNote={() => setShowAddNoteFormHome(true)} // Use state from home page
+        onManageCategories={handleOpenCategoryManager}
+        // No onDeleteCategory needed on home page
+        showDeleteCategory={false} // Hide delete option on home page
+      />
     </div>
   );
 }

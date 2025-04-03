@@ -11,10 +11,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface NotesSectionProps {
-  onCreateFromNote: (content: string, category: string) => void; // Simplify category to always be string for the callback
+  onCreateFromNote: (content: string, category: string) => void;
   category?: string | number;
   id_category?: string | number;
   onlyWithoutCategory?: boolean;
+  showAddNoteForm: boolean; // Added prop
+  setShowAddNoteForm: (show: boolean) => void; // Added prop
 }
 
 // Helper to generate the query key consistently
@@ -38,6 +40,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   category,
   id_category,
   onlyWithoutCategory = false,
+  showAddNoteForm, // Receive prop
+  setShowAddNoteForm, // Receive prop
 }) => {
   // State for swipe interaction per note
   const [swipeStates, setSwipeStates] = useState<Record<string, {
@@ -47,7 +51,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   }>>({});
 
   const isMobile = useIsMobile();
-  const [showAddNoteForm, setShowAddNoteForm] = useState(false);
+  // Removed local state: const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editedContent, setEditedContent] = useState("");
   const queryClient = useQueryClient();
@@ -287,15 +291,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
         <h2 className="text-lg font-medium">
           {getTitle()}
         </h2>
-        <Button
-          variant="ghost"
-          onClick={() => setShowAddNoteForm(true)}
-          className="flex items-center text-primary hover:text-primary-600 hover:bg-primary-50 disabled:opacity-50"
-          disabled={showAddNoteForm} // Disable button while form is open
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          Dodaj notatkę
-        </Button>
+        {/* Removed Add Note button from here */}
       </div>
 
       {showAddNoteForm && (
@@ -338,13 +334,14 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
                 {/* Background swipe actions (only visible during swipe) */}
                 {isMobile && (
                     <div className="absolute inset-0 flex z-0">
+                        {/* Swipe Right (Edit) Background and Icon */}
                         <div className={cn(
-                            'w-1/2 flex items-center justify-end pr-4 transition-colors duration-200 ease-in-out',
-                            // Show solid color only when swiping actively in that direction
-                            swipeStates[note.id]?.direction === 'right' ? 'bg-blue-500' : 'bg-blue-500/30'
+                            'w-1/2 flex items-center justify-start pl-4 transition-colors duration-200 ease-in-out', // Changed justify-end to justify-start and pr-4 to pl-4
+                            swipeStates[note.id]?.direction === 'right' ? 'bg-blue-500' : 'bg-blue-100' // Use lighter bg when not active
                         )}>
-                            <Edit className="h-5 w-5 text-white" />
+                            <Edit className="h-5 w-5 text-blue-700" /> {/* Changed text-white to text-blue-700 */}
                         </div>
+                        {/* Swipe Left (Delete) Background and Icon */}
                         <div className={cn(
                             'w-1/2 flex items-center justify-start pl-4 transition-colors duration-200 ease-in-out',
                             swipeStates[note.id]?.direction === 'left' ? 'bg-red-500' : 'bg-red-500/30'
