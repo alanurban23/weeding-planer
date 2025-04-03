@@ -166,8 +166,37 @@ export default async function handler(req, res) {
       if (categoryIdNum === null) {
         return res.status(400).json({ error: 'Valid Category ID parameter is required.' });
       }
+
+      // Check if any tasks are using this category
+      const { count: taskCount, error: taskCheckError } = await supabase
+        .from('tasks') // Check the tasks table
+        .select('id', { count: 'exact', head: true }) // Just need the count
+        .eq('id_category', categoryIdNum);
+
+      if (taskCheckError) {
+        console.error(`Error checking tasks for category ${categoryIdNum}:`, taskCheckError);
+        // Decide if this should prevent deletion or just log. Let's prevent for safety.
+        return res.status(500).json({ error: 'Failed to check associated tasks', details: taskCheckError.message });
+      }
+
+      if (taskCount > 0) {
+        console.log(`Attempted to delete category ${categoryIdNum} which is still in use by ${taskCount} tasks.`);
+        return res.status(409).json({ // 409 Conflict is appropriate here
+          error: 'Kategoria jest w użyciu',
+          details: `Nie można usunąć kategorii, ponieważ jest przypisana do ${taskCount} zadań.`
+        });
+      }
+
+      // Proceed with deletion if no tasks are using it
       const { error, status, count } = await supabase.from(CATEGORIES_TABLE).delete({ count: 'exact' }).eq('id', categoryIdNum);
-      if (error) throw error;
+
+      // Handle potential deletion errors (though FK violation should be caught above now)
+      if (error) {
+         console.error(`Supabase DELETE Category Error (ID: ${id}): Code=${error.code}, Message=${error.message}`);
+         // Don't throw here, return a specific error response
+         return res.status(status || 500).json({ error: 'Failed to delete category', details: error.message });
+      }
+
       if (count === 0) return res.status(404).json({ error: 'Category not found for deletion.' });
       console.log(`Category ID ${id} deleted.`);
       return res.status(200).json({ success: true, message: 'Category deleted successfully.' });

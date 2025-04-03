@@ -151,25 +151,27 @@ const CategoryList: React.FC<CategoryListProps> = ({
         // Define right actions for swipe
         const rightActions = (
             <div className="flex h-full">
+                 {/* Edit Action Button - Icon Only */}
                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-blue-500 text-white rounded-none h-full w-16 flex flex-col items-center justify-center p-1" // Adjust size/padding
+                    variant="default"
+                    size="icon" // Use icon size
+                    className="bg-blue-500 text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0" // w-16 (64px)
                     onClick={(e) => handleEditClick(e, category)}
                     aria-label={`Edytuj kategorię ${category.name}`}
+                    title="Edytuj" // Add title for tooltip on hover (desktop)
                  >
-                    <Edit className="h-4 w-4 mb-1" />
-                    <span className="text-xs">Edytuj</span>
+                    <Edit className="h-5 w-5" />
                  </Button>
+                 {/* Delete Action Button - Icon Only */}
                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="bg-red-500 text-white rounded-none h-full w-16 flex flex-col items-center justify-center p-1" // Adjust size/padding
+                    variant="destructive"
+                    size="icon" // Use icon size
+                    className="text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-red-600 focus-visible:ring-0 focus-visible:ring-offset-0" // w-16 (64px)
                     onClick={(e) => handleDeleteClick(e, category.id, category.name)}
                     aria-label={`Usuń kategorię ${category.name}`}
+                    title="Usuń" // Add title for tooltip on hover (desktop)
                  >
-                    <Trash2 className="h-4 w-4 mb-1" />
-                    <span className="text-xs">Usuń</span>
+                    <Trash2 className="h-5 w-5" />
                  </Button>
             </div>
         );
@@ -178,7 +180,7 @@ const CategoryList: React.FC<CategoryListProps> = ({
           <SwipeableItem
              key={category.id}
              rightActions={rightActions}
-             actionWidth={128} // Total width for two 64px buttons
+             actionWidth={128} // Width for two w-16 (64px) buttons
              threshold={0.3} // Adjust threshold
              className="rounded-lg overflow-hidden" // Apply rounding and overflow hidden to the wrapper
           >

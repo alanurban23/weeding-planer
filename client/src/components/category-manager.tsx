@@ -282,25 +282,27 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                   // Define right actions for swipe
                   const rightActions = (
                     <div className="flex h-full">
+                         {/* Edit Action Button - Icon Only */}
                          <Button
-                            variant="ghost"
+                            variant="default"
                             size="icon"
-                            className="bg-blue-500 text-white rounded-none h-full w-12 flex flex-col items-center justify-center p-1" // Adjust size/padding
-                            onClick={() => handleEditClick(category)} // Use existing handler
+                            className="bg-blue-500 text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0" // w-16, ensure centering
+                            onClick={() => handleEditClick(category)}
                             aria-label={`Edytuj kategorię ${category.name}`}
+                            title="Edytuj"
                          >
-                            <Edit className="h-4 w-4 mb-1" />
-                            <span className="text-xs" style={{ fontSize: '0.6rem' }}>Edytuj</span> {/* Smaller text */}
+                            <Edit className="h-5 w-5" />
                          </Button>
+                         {/* Delete Action Button - Icon Only */}
                          <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="icon"
-                            className="bg-red-500 text-white rounded-none h-full w-12 flex flex-col items-center justify-center p-1" // Adjust size/padding
-                            onClick={() => handleDeleteCategory(category.id)} // Use existing handler
+                            className="text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-red-600 focus-visible:ring-0 focus-visible:ring-offset-0" // w-16, ensure centering
+                            onClick={() => handleDeleteCategory(category.id)}
                             aria-label={`Usuń kategorię ${category.name}`}
+                            title="Usuń"
                          >
-                            <Trash className="h-4 w-4 mb-1" />
-                            <span className="text-xs" style={{ fontSize: '0.6rem' }}>Usuń</span> {/* Smaller text */}
+                            <Trash className="h-5 w-5" />
                          </Button>
                     </div>
                   );
@@ -309,7 +311,7 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
                     <SwipeableItem // Wrap with custom component
                       key={categoryIdStr}
                       rightActions={rightActions}
-                      actionWidth={96} // Adjust width for two buttons
+                      actionWidth={128} // Width for two w-16 (64px) buttons remains the same
                       threshold={0.3}
                       className="rounded overflow-hidden" // Apply rounding/overflow to wrapper
                       blockSwipe={isEditing || isMutating} // Block swipe when editing or mutating
