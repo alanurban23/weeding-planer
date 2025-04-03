@@ -245,8 +245,5 @@ app.get('/', (req, res) => {
   res.send('Notes, Tasks, & Categories API is running.');
 });
 
-// --- Start Server ---
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`Supabase URL: ${supabaseUrl}`);
-});
+// --- Export the app for Vercel ---
+export default app;

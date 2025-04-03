@@ -43,7 +43,7 @@ export const addNote = async (note: NoteInput) => {
 };
 
 export const updateNote = async (id: string, note: NoteInput) => {
-    const response = await fetch(`/api/notes?id=${id}`, {
+    const response = await fetch(`/api/notes/${id}`, { // Corrected URL
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export const updateNote = async (id: string, note: NoteInput) => {
 };
 
 export const deleteNote = async (id: string) => {
-    const response = await fetch(`/api/notes?id=${id}`, {
+    const response = await fetch(`/api/notes/${id}`, { // Corrected URL
         method: 'DELETE',
     });
     if (!response.ok) {

@@ -30,7 +30,7 @@ const app = express();
 
 // --- Middleware ---
 app.use(cors()); // Enable CORS for all origins (configure specific origins in production)
-app.use(express.json()); // Middleware to parse JSON request bodies
+// app.use(express.json()); // Middleware to parse JSON request bodies - REMOVED temporarily to test DELETE
 
 // --- Helper Function for Parsing Category ID ---
 function parseCategoryId(id_category) {
@@ -261,8 +261,5 @@ app.get('/', (req, res) => {
   res.send('Notes API is running.');
 });
 
-// --- Start Server ---
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-  console.log(`Supabase URL: ${supabaseUrl}`); // Log URL but not key
-});
+// --- Export the app for Vercel ---
+export default app;
