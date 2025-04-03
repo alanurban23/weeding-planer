@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trash, Loader2 } from 'lucide-react';
+import { Trash, Loader2 } from 'lucide-react'; // Removed Edit, Check, X
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,8 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// Removed swipe list imports
 
-// Interfaces remain the same
 interface Category {
   id: string | number;
   name: string;
@@ -58,10 +58,11 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedParentId, setSelectedParentId] = useState<string | undefined>(undefined);
   const [categoryToDeleteId, setCategoryToDeleteId] = useState<string | null>(null);
+  // Removed editing state
 
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery<Category[]>({
     queryKey: categoriesQueryKey,
-    queryFn: () => apiRequest(categoriesQueryKey[0]), // GET call - assumes apiRequest(url)
+    queryFn: () => apiRequest(categoriesQueryKey[0]),
     enabled: isOpen,
   });
 
@@ -74,11 +75,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   }, [categories]);
 
   const addCategoryMutation = useMutation({
-    // Corrected mutationFn signature
     mutationFn: (data: { name: string; parent_id?: string | number | null }) =>
-      apiRequest('/api/categories', 'POST', data), // Pass method as string, data as third arg
-    // onSuccess and onError remain the same
-    onSuccess: (/* newCategory */) => {
+      apiRequest('/api/categories', 'POST', data),
+    onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: categoriesQueryKey });
         queryClient.invalidateQueries({ queryKey: tasksQueryKey });
         setNewCategoryName('');
@@ -101,10 +100,8 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
   });
 
   const deleteCategoryMutation = useMutation({
-    // Corrected mutationFn signature
     mutationFn: (id: string) =>
-      apiRequest(`/api/categories/${id}`, 'DELETE'), // Pass method as string, no body needed for DELETE
-    // onSuccess and onError remain the same
+      apiRequest(`/api/categories/${id}`, 'DELETE'),
     onSuccess: (_, deletedId) => {
         queryClient.invalidateQueries({ queryKey: categoriesQueryKey });
         queryClient.invalidateQueries({ queryKey: tasksQueryKey });
@@ -126,198 +123,182 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({
       },
   });
 
-  // handleAddCategory, handleDeleteCategory, confirmDeleteCategory, cancelDeleteCategory, handleCloseDialog
-  // and the JSX render logic remain exactly the same as the previously optimized version.
-  // ... (paste the rest of the component code from the previous response here) ...
+  // Removed update category mutation and edit handlers
 
-    // Handle Add Category Form Submission
-    const handleAddCategory = (e: React.FormEvent) => {
-        e.preventDefault();
-        const trimmedName = newCategoryName.trim();
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = newCategoryName.trim();
+    if (!trimmedName) {
+      toast({ title: "Błąd", description: "Nazwa kategorii nie może być pusta", variant: "destructive" });
+      return;
+    }
+    const categoryExists = categories.some(cat => cat.name.toLowerCase() === trimmedName.toLowerCase());
+    if (categoryExists) {
+      toast({ title: "Błąd", description: "Kategoria o tej nazwie już istnieje", variant: "destructive" });
+      return;
+    }
+    const categoryData: { name: string; parent_id?: string | number | null } = {
+      name: trimmedName,
+      parent_id: (selectedParentId && selectedParentId !== "none") ? selectedParentId : null,
+    };
+    addCategoryMutation.mutate(categoryData);
+  };
 
-        if (!trimmedName) {
-          toast({ title: "Błąd", description: "Nazwa kategorii nie może być pusta", variant: "destructive" });
-          return;
-        }
+  const handleDeleteCategory = (id: string | number) => {
+    setCategoryToDeleteId(id.toString());
+  };
 
-        const categoryExists = categories.some(
-          (cat) => cat.name.toLowerCase() === trimmedName.toLowerCase()
-        );
+  const confirmDeleteCategory = () => {
+    if (categoryToDeleteId) {
+      deleteCategoryMutation.mutate(categoryToDeleteId);
+    }
+  };
 
-        if (categoryExists) {
-          toast({ title: "Błąd", description: "Kategoria o tej nazwie już istnieje", variant: "destructive" });
-          return;
-        }
+  const cancelDeleteCategory = () => {
+    setCategoryToDeleteId(null);
+  };
 
-        const categoryData: { name: string; parent_id?: string | number | null } = {
-          name: trimmedName,
-          parent_id: (selectedParentId && selectedParentId !== "none") ? selectedParentId : null,
-        };
+  const handleCloseDialog = () => {
+    if (!addCategoryMutation.isPending && !deleteCategoryMutation.isPending) { // Removed update mutation check
+      onClose();
+    }
+  }
 
-        addCategoryMutation.mutate(categoryData); // Pass the data object here
-      };
+  const isMutating = addCategoryMutation.isPending || deleteCategoryMutation.isPending;
 
-      // Initiate Delete Process
-      const handleDeleteCategory = (id: string | number) => {
-        setCategoryToDeleteId(id.toString());
-      };
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Zarządzanie kategoriami</DialogTitle>
+          </DialogHeader>
 
-      // Confirm Delete Action (from AlertDialog)
-      const confirmDeleteCategory = () => {
-        if (categoryToDeleteId) {
-          deleteCategoryMutation.mutate(categoryToDeleteId); // Pass the ID string here
-        }
-      };
+          <form onSubmit={handleAddCategory} className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="new-category" className="text-sm font-medium">
+                Nowa kategoria
+              </Label>
+              <Input
+                id="new-category"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Nazwa nowej kategorii"
+                className="mt-1"
+                autoFocus
+                disabled={isMutating}
+              />
+            </div>
+            <div>
+              <Label htmlFor="parent-category" className="text-sm font-medium">
+                Kategoria nadrzędna (opcjonalnie)
+              </Label>
+              <Select
+                value={selectedParentId ?? "none"}
+                onValueChange={(value) => setSelectedParentId(value === "none" ? undefined : value)}
+                disabled={isMutating || isLoadingCategories}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Wybierz kategorię nadrzędną..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Brak (kategoria główna)</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id.toString()} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isMutating || !newCategoryName.trim()}>
+                {addCategoryMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {addCategoryMutation.isPending ? 'Dodawanie...' : 'Dodaj kategorię'}
+              </Button>
+            </div>
+          </form>
 
-      // Cancel Delete Action (from AlertDialog)
-      const cancelDeleteCategory = () => {
-        setCategoryToDeleteId(null);
-      };
+          <div className="pt-4 space-y-2">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Istniejące kategorie</h3>
+            {isLoadingCategories ? (
+               <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Ładowanie...</span>
+               </div>
+            ) : categories.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Brak zdefiniowanych kategorii.</p>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2"> {/* Reverted to simple div */}
+                {categories.map((category) => {
+                  const categoryIdStr = category.id.toString();
+                  // Removed isEditing check
 
-      // Close main dialog handler
-      const handleCloseDialog = () => {
-          if (!addCategoryMutation.isPending && !deleteCategoryMutation.isPending) {
-              onClose();
-          }
-      }
-
-      const isMutating = addCategoryMutation.isPending || deleteCategoryMutation.isPending;
-
-      // --- JSX Render ---
-      return (
-        <>
-          {/* Main Dialog for Managing Categories */}
-          <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Zarządzanie kategoriami</DialogTitle>
-              </DialogHeader>
-
-              {/* Add Category Form */}
-              <form onSubmit={handleAddCategory} className="space-y-4 pt-4">
-                <div>
-                  <Label htmlFor="new-category" className="text-sm font-medium">
-                    Nowa kategoria
-                  </Label>
-                  <Input
-                    id="new-category"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Nazwa nowej kategorii"
-                    className="mt-1"
-                    autoFocus
-                    disabled={isMutating}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="parent-category" className="text-sm font-medium">
-                    Kategoria nadrzędna (opcjonalnie)
-                  </Label>
-                  <Select
-                    value={selectedParentId ?? "none"}
-                    onValueChange={(value) => setSelectedParentId(value === "none" ? undefined : value)}
-                    disabled={isMutating || isLoadingCategories}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Wybierz kategorię nadrzędną..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Brak (kategoria główna)</SelectItem>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id.toString()} value={category.id.toString()}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isMutating || !newCategoryName.trim()}>
-                    {addCategoryMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {addCategoryMutation.isPending ? 'Dodawanie...' : 'Dodaj kategorię'}
-                  </Button>
-                </div>
-              </form>
-
-              {/* List of Existing Categories */}
-              <div className="pt-4 space-y-2">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Istniejące kategorie</h3>
-                {isLoadingCategories ? (
-                   <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      <span className="ml-2 text-sm text-muted-foreground">Ładowanie...</span>
-                   </div>
-                ) : categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Brak zdefiniowanych kategorii.</p>
-                ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto border rounded-md p-2">
-                    {categories.map((category) => (
-                      <div
-                        key={category.id.toString()}
-                        className="flex items-center justify-between p-2 rounded hover:bg-muted/50"
-                      >
-                        <div className="flex flex-col text-sm">
-                          <span>{category.name}</span>
-                          {category.parent_id && (
-                            <span className="text-xs text-muted-foreground">
-                              Nadrzędna: {categoryMap.get(category.parent_id.toString()) || 'Nieznana'}
-                            </span>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                          onClick={() => handleDeleteCategory(category.id)}
-                          disabled={deleteCategoryMutation.isPending}
-                          title={`Usuń kategorię ${category.name}`}
-                        >
-                           {deleteCategoryMutation.isPending && deleteCategoryMutation.variables === category.id.toString()
-                             ? <Loader2 className="h-4 w-4 animate-spin" />
-                             : <Trash className="h-4 w-4" />
-                           }
-                        </Button>
+                  return (
+                    <div // Reverted to simple div
+                      key={categoryIdStr}
+                      className="flex items-center justify-between p-2 rounded hover:bg-muted/50"
+                    >
+                      <div className="flex flex-col text-sm flex-grow mr-2 truncate">
+                        <span>{category.name}</span>
+                        {category.parent_id && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            Nadrzędna: {categoryMap.get(category.parent_id.toString()) || 'Nieznana'}
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10 h-8 w-8 flex-shrink-0" // Added flex-shrink-0
+                        onClick={() => handleDeleteCategory(category.id)}
+                        disabled={isMutating}
+                        title={`Usuń kategorię ${category.name}`}
+                      >
+                        {deleteCategoryMutation.isPending && deleteCategoryMutation.variables === categoryIdStr
+                          ? <Loader2 className="h-4 w-4 animate-spin" />
+                          : <Trash className="h-4 w-4" />
+                        }
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
+            )}
+          </div>
 
-              <DialogFooter className="pt-4">
-                <Button variant="outline" onClick={handleCloseDialog} disabled={isMutating}>
-                  Zamknij
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={handleCloseDialog} disabled={isMutating}>
+              Zamknij
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          {/* Delete Confirmation Dialog */}
-          <AlertDialog open={!!categoryToDeleteId} onOpenChange={(open) => !open && cancelDeleteCategory()}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Potwierdź usunięcie</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Czy na pewno chcesz usunąć kategorię "{categoryMap.get(categoryToDeleteId ?? '') ?? 'Wybrana'}"?
-                  Zadania i notatki przypisane do tej kategorii stracą to przypisanie. Tej akcji nie można cofnąć.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel onClick={cancelDeleteCategory}>Anuluj</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={confirmDeleteCategory}
-                  disabled={deleteCategoryMutation.isPending}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                   {deleteCategoryMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Usuń
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      );
+      <AlertDialog open={!!categoryToDeleteId} onOpenChange={(open) => !open && cancelDeleteCategory()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Potwierdź usunięcie</AlertDialogTitle>
+            <AlertDialogDescription>
+              Czy na pewno chcesz usunąć kategorię "{categoryMap.get(categoryToDeleteId ?? '') ?? 'Wybrana'}"?
+              Zadania i notatki przypisane do tej kategorii stracą to przypisanie. Tej akcji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteCategory}>Anuluj</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteCategory}
+              disabled={deleteCategoryMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+               {deleteCategoryMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Usuń
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 };
 
 export default CategoryManager;
