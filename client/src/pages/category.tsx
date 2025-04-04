@@ -125,16 +125,22 @@ export default function CategoryPage() {
   const {
     data: tasks = [],
     isLoading: isLoadingTasks,
-    refetch: refetchTasks
-  } = useQuery<Task[]>({
-    queryKey: ['/api/tasks', categoryId],
-    queryFn: () => {
-      if (categoryId === null) return Promise.resolve([]);
-      return apiRequest(`/api/tasks`, 'GET');
-    },
-    enabled: categoryId !== null,
-  });
-
+     refetch: refetchTasks
+   } = useQuery<Task[]>({
+     // Use a consistent query key for ALL tasks, independent of the current category page
+     queryKey: ['/api/tasks'], 
+     queryFn: () => apiRequest(`/api/tasks`, 'GET'), // Always fetch all tasks
+     // Keep enabled: false initially if categoryId is null, but the query itself fetches all
+     enabled: categoryId !== null, 
+    });
+ 
+   // Handler to refetch subcategories when one is updated/deleted in TaskList
+   const handleSubcategoryUpdate = () => {
+     refetchSubcategories();
+     // Optionally refetch all categories if needed elsewhere
+     queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+   };
+ 
   // Mutacja do usuwania zadania
   const deleteMutation = useMutation({
     mutationFn: (taskId: string) => apiRequest(`/api/tasks/${taskId}`, 'DELETE'),
@@ -391,12 +397,14 @@ export default function CategoryPage() {
                 subcategories={subcategories}
                 isLoading={isLoadingTasks || isLoadingSubcategories}
                 onToggleTaskCompletion={handleToggleTaskCompletion}
-                onEditTask={handleEditTask}
-                onDeleteTask={handleDeleteTask}
-                onAddTask={handleAddTask} // Keep for potential internal use in TaskList? Revisit if needed.
-                onCreateFromNote={handleCreateFromNote}
-              />
-            </div>
+                 onEditTask={handleEditTask}
+                 onDeleteTask={handleDeleteTask}
+                 onAddTask={handleAddTask}
+                 onCreateFromNote={handleCreateFromNote}
+                 allTasks={tasks} // Pass the full task list
+                 onSubcategoryUpdate={handleSubcategoryUpdate} // Pass the callback
+               />
+             </div>
           </div>
         </div>
       </main>
