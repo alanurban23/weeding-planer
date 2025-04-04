@@ -307,8 +307,9 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <div className="grid grid-cols-1 gap-6">
-            {/* Sekcja notatek */}
+          {/* Apply grid layout for medium screens and up */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Item 1: Sekcja notatek (Top-Left) */}
             <NotesSection
               onCreateFromNote={handleCreateFromNote}
               onlyWithoutCategory={true}
@@ -316,7 +317,7 @@ export default function Home() {
               setShowAddNoteForm={setShowAddNoteFormHome} // Pass setter
             />
 
-            {/* Zadania nadchodzące i po terminie */}
+            {/* Item 2: Zadania nadchodzące i po terminie (Top-Right) */}
             <Card className="border-t-4 border-t-primary">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
@@ -442,12 +443,11 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Sekcja Budżetu */}
+            {/* Item 3: Sekcja Budżetu (Bottom-Left) */}
             <BudgetTracker />
 
-            {/* Lista kategorii */}
-            {/* Pass the processed categories and all tasks */}
-            <div className="mt-6">
+            {/* Item 4: Lista kategorii (Bottom-Right) */}
+            <div className="mt-6 md:mt-0"> {/* Remove top margin on desktop */}
               <h2 className="text-xl font-semibold mb-4">Kategorie zadań</h2>
               <CategoryList
                 categories={processedCategories} // Pass processed categories with parent_id
