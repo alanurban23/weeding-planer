@@ -22,7 +22,8 @@ import CategoryManager from '@/components/category-manager';
 import CategoryList from '@/components/category-list';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GlobalFab } from '@/components/global-fab'; // Import GlobalFab
+import { GlobalFab } from '@/components/global-fab';
+import BudgetTracker from '@/components/budget-tracker'; // Import the new component
 
 export default function Home() {
   const { toast } = useToast();
@@ -441,7 +442,9 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            {/* Lista kategorii */}
+            {/* Sekcja Budżetu */}
+            <BudgetTracker />
+
             {/* Lista kategorii */}
             {/* Pass the processed categories and all tasks */}
             <div className="mt-6">
