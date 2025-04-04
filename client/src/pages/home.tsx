@@ -53,8 +53,16 @@ export default function Home() {
     }
   });
 
-  // Pobieranie kategorii bezpośrednio z API
-  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery<{id: string, name: string}[]>({
+  // Define Category interface matching the API response (including parent_id)
+  interface Category {
+    id: number; // Expecting numeric ID from API now
+    name: string;
+    parent_id: number | null;
+    created_at?: string; // Optional fields if they exist
+  }
+
+  // Pobieranie kategorii bezpośrednio z API, using the correct type
+  const { data: categoriesData = [], isLoading: isLoadingCategories } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
     queryFn: () => apiRequest('/api/categories')
   });
@@ -138,42 +146,20 @@ export default function Home() {
     },
   });
 
-  // Wyodrębnianie unikalnych kategorii z zadań
-  const uniqueCategories = useMemo<Array<{ id: number; name: string }>>(() => {
-    console.log('Dane kategorii:', categoriesData);
-    try {
-      if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
-        console.log('Używam kategorii z API:', categoriesData);
-        return categoriesData
-          .filter(category => category.id !== undefined)
-          .map(category => {
-            const numericId = typeof category.id === 'string'
-              ? parseInt(category.id, 10)
-              : (typeof category.id === 'number' ? category.id : NaN);
-            const id = isNaN(numericId) ? Math.floor(Math.random() * 10000) : numericId;
-            return { id, name: category.name };
-          });
-      }
-      const taskCategories = Array.from(new Set(tasks
-        .map(task => task.id_category !== undefined ? task.id_category : task.category)
-        .filter(category => category !== undefined && category !== null)
-      ));
-      console.log('Kategorie z zadań:', taskCategories);
-      return taskCategories.map(category => {
-        let id: number;
-        if (typeof category === 'number') {
-          id = category;
-        } else {
-          const parsedId = parseInt(String(category), 10);
-          id = isNaN(parsedId) ? Math.floor(Math.random() * 10000) : parsedId;
-        }
-        return { id, name: String(category) };
-      });
-    } catch (error) {
-      console.error('Błąd podczas przetwarzania kategorii:', error);
+  // Process categories fetched from the API, ensuring correct types and structure
+  const processedCategories = useMemo<Category[]>(() => {
+    if (!categoriesData || !Array.isArray(categoriesData)) {
       return [];
     }
-  }, [tasks, categoriesData]);
+    // Filter out any potentially invalid category data and ensure IDs are numbers
+    return categoriesData
+      .filter(cat => cat && typeof cat.id === 'number' && !isNaN(cat.id) && typeof cat.name === 'string')
+      .map(cat => ({
+        ...cat,
+        // Ensure parent_id is number or null
+        parent_id: typeof cat.parent_id === 'number' ? cat.parent_id : null,
+      }));
+  }, [categoriesData]);
 
   // Function to invalidate categories query
   const handleCategoryUpdate = () => {
@@ -456,12 +442,14 @@ export default function Home() {
             </Card>
 
             {/* Lista kategorii */}
+            {/* Lista kategorii */}
+            {/* Pass the processed categories and all tasks */}
             <div className="mt-6">
               <h2 className="text-xl font-semibold mb-4">Kategorie zadań</h2>
               <CategoryList
-                categories={uniqueCategories}
-                tasks={tasks}
-                isLoading={isLoading || isLoadingCategories}
+                categories={processedCategories} // Pass processed categories with parent_id
+                tasks={tasks} // Pass all tasks
+                isLoading={isLoadingCategories} // Use only category loading state here
                 onManageCategories={handleOpenCategoryManager}
                 onCategoryUpdate={handleCategoryUpdate} // Pass the handler function
               />
@@ -476,7 +464,7 @@ export default function Home() {
         onClose={() => setShowAddTaskModal(false)}
         onSave={handleSaveTask}
         task={editingTask}
-        categories={uniqueCategories}
+        categories={processedCategories} // Pass processed categories to form as well
         onCreateFromNote={handleCreateFromNote}
       />
 

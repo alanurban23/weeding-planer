@@ -1,21 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Task } from '@shared/schema';
+import { Task } from '@shared/schema'; // Assuming Task type includes id_category: number | null
 import { Progress } from '@/components/ui/progress';
 import { Loader2, FolderX, Trash2, Edit, Check, X, ChevronRight } from 'lucide-react';
 import { updateCategory, deleteCategory } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import SwipeableItem from '@/components/ui/swipeable-item'; // Import the custom component
 
+// Updated Category interface to include parent_id
 interface Category {
   id: number;
   name: string;
+  parent_id: number | null;
 }
 
 interface CategoryListProps {
-  categories: Array<Category | any>;
+  categories: Category[]; // Expect processed categories now
   tasks: Task[];
   isLoading: boolean;
   onManageCategories: () => void;
@@ -40,32 +42,31 @@ const CategoryList: React.FC<CategoryListProps> = ({
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [editedName, setEditedName] = useState('');
 
-  const validCategories = useMemo(() => {
-    if (!Array.isArray(categories)) {
-      console.warn('CategoryList: Received non-array for categories:', categories);
-      return [];
-    }
-    return categories.filter(
-      (cat): cat is Category =>
-        cat != null &&
-        typeof cat === 'object' &&
-        typeof cat.name === 'string' && cat.name.trim() !== '' &&
-        typeof cat.id === 'number' &&
-        !isNaN(cat.id)
-    );
-  }, [categories]);
-
+  // --- Recalculate Stats (Directly Assigned Tasks Only) ---
   const categoryStatsMap = useMemo(() => {
     const statsMap = new Map<number, CategoryStats>();
-    if (!Array.isArray(tasks)) {
-      console.warn('CategoryList: Received non-array for tasks:', tasks);
+    if (!Array.isArray(tasks) || !Array.isArray(categories)) { // Use categories directly
       return statsMap;
     }
-    validCategories.forEach((category) => {
-      const categoryTasks = tasks.filter((task) => task.category === category.name);
+
+    categories.forEach((category) => {
+      // Ensure category and category.id are valid before proceeding
+      if (!category || typeof category.id !== 'number') return;
+
+      // Filter tasks belonging *only* to this specific category
+      const categoryTasks = tasks.filter(task => {
+        // Ensure consistent type comparison (assuming category.id is always number)
+        const taskIdCategoryNum = typeof task.id_category === 'string'
+          ? parseInt(task.id_category, 10)
+          : task.id_category;
+        return taskIdCategoryNum === category.id;
+      });
+
       const totalTasks = categoryTasks.length;
-      const completedTasks = categoryTasks.filter((task) => task.completed).length;
+      // Explicitly check for truthy 'completed' status
+      const completedTasks = categoryTasks.filter((task) => !!task.completed).length;
       const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
       statsMap.set(category.id, {
         totalTasks,
         completedTasks,
@@ -73,7 +74,8 @@ const CategoryList: React.FC<CategoryListProps> = ({
       });
     });
     return statsMap;
-  }, [validCategories, tasks]);
+  }, [categories, tasks]); // Dependency on getAllDescendantIds removed
+
 
   const handleEditClick = (e: React.MouseEvent, category: Category) => {
     e.stopPropagation();
@@ -129,7 +131,7 @@ const CategoryList: React.FC<CategoryListProps> = ({
     );
   }
 
-  if (validCategories.length === 0) {
+  if (categories.length === 0) { // Check original categories prop length
     return (
       <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <FolderX className="mx-auto h-12 w-12 text-gray-400" />
@@ -144,8 +146,12 @@ const CategoryList: React.FC<CategoryListProps> = ({
 
   return (
     <div className="space-y-4">
-      {validCategories.map((category) => {
+      {categories.map((category) => { // Map over original categories prop
+        // Ensure category and category.id are valid before rendering
+        if (!category || typeof category.id !== 'number') return null;
+
         const isEditing = editingCategoryId === category.id;
+        // Use the simplified stats map
         const stats = categoryStatsMap.get(category.id) ?? { totalTasks: 0, completedTasks: 0, completionPercentage: 0 };
 
         // Define right actions for swipe
@@ -154,22 +160,22 @@ const CategoryList: React.FC<CategoryListProps> = ({
                  {/* Edit Action Button - Icon Only */}
                  <Button
                     variant="default"
-                    size="icon" // Use icon size
-                    className="bg-blue-500 text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0" // w-16 (64px)
+                    size="icon"
+                    className="bg-blue-500 text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0"
                     onClick={(e) => handleEditClick(e, category)}
                     aria-label={`Edytuj kategorię ${category.name}`}
-                    title="Edytuj" // Add title for tooltip on hover (desktop)
+                    title="Edytuj"
                  >
                     <Edit className="h-5 w-5" />
                  </Button>
                  {/* Delete Action Button - Icon Only */}
                  <Button
                     variant="destructive"
-                    size="icon" // Use icon size
-                    className="text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-red-600 focus-visible:ring-0 focus-visible:ring-offset-0" // w-16 (64px)
+                    size="icon"
+                    className="text-white rounded-none h-full w-16 flex items-center justify-center hover:bg-red-600 focus-visible:ring-0 focus-visible:ring-offset-0"
                     onClick={(e) => handleDeleteClick(e, category.id, category.name)}
                     aria-label={`Usuń kategorię ${category.name}`}
-                    title="Usuń" // Add title for tooltip on hover (desktop)
+                    title="Usuń"
                  >
                     <Trash2 className="h-5 w-5" />
                  </Button>
@@ -180,38 +186,38 @@ const CategoryList: React.FC<CategoryListProps> = ({
           <SwipeableItem
              key={category.id}
              rightActions={rightActions}
-             actionWidth={128} // Width for two w-16 (64px) buttons
-             threshold={0.3} // Adjust threshold
-             className="rounded-lg overflow-hidden" // Apply rounding and overflow hidden to the wrapper
+             actionWidth={128}
+             threshold={0.3}
+             className="rounded-lg overflow-hidden"
+             blockSwipe={isEditing}
           >
             {/* Original Item Content */}
             <div
-              // key removed from here, now on SwipeableItem
-              className={`bg-white border border-gray-200 p-4 md:p-6 transition-all group w-full ${isEditing ? 'border-primary ring-1 ring-primary' : ''}`} // Removed hover styles from inner div
-            onClick={isEditing ? undefined : () => navigate(`/category/${category.id}`)}
-            role={isEditing ? undefined : "link"}
-            aria-label={isEditing ? `Edytowanie kategorii ${category.name}` : `Przejdź do kategorii ${category.name}`}
-          >
-            <div className="flex justify-between items-start mb-2">
-              {isEditing ? (
-                <div className="flex-grow mr-2">
-                  <Input
-                    type="text"
-                    value={editedName}
-                    onChange={(e) => setEditedName(e.target.value)}
-                    className="text-xl font-semibold h-9"
-                    aria-label="Nowa nazwa kategorii"
-                    autoFocus
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit(e as any, category.id);
-                      if (e.key === 'Escape') handleCancelEdit();
-                    }}
-                  />
-                </div>
-              ) : (
-                <h2 className="text-xl font-semibold text-gray-800 truncate pr-2 flex-grow">
-                  {category.name}
+              className={`bg-white border border-gray-200 p-4 md:p-6 transition-all group w-full ${isEditing ? 'border-primary ring-1 ring-primary' : ''}`}
+              onClick={isEditing ? undefined : () => navigate(`/category/${category.id}`)}
+              role={isEditing ? undefined : "link"}
+              aria-label={isEditing ? `Edytowanie kategorii ${category.name}` : `Przejdź do kategorii ${category.name}`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                {isEditing ? (
+                  <div className="flex-grow mr-2">
+                    <Input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="text-xl font-semibold h-9"
+                      aria-label="Nowa nazwa kategorii"
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveEdit(e as any, category.id);
+                        if (e.key === 'Escape') handleCancelEdit();
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <h2 className="text-xl font-semibold text-gray-800 truncate pr-2 flex-grow">
+                    {category.name}
                   </h2>
                 )}
                  {/* Desktop buttons - hidden on small screens */}
@@ -219,18 +225,18 @@ const CategoryList: React.FC<CategoryListProps> = ({
                   {isEditing ? (
                     <>
                       <Button variant="ghost" size="icon" className="text-green-600 hover:bg-green-100 h-8 w-8" onClick={(e) => handleSaveEdit(e, category.id)} title="Zapisz zmiany" aria-label="Zapisz zmiany nazwy kategorii">
-                      <Check className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-gray-500 hover:bg-gray-100 h-8 w-8" onClick={handleCancelEdit} title="Anuluj edycję" aria-label="Anuluj edycję nazwy kategorii">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-gray-500 hover:bg-gray-100 h-8 w-8" onClick={handleCancelEdit} title="Anuluj edycję" aria-label="Anuluj edycję nazwy kategorii">
                         <X className="h-4 w-4" />
                       </Button>
                     </>
                   ) : (
                     <>
                       <Button variant="ghost" size="icon" className="text-blue-600 hover:bg-blue-100 h-8 w-8" onClick={(e) => handleEditClick(e, category)} title={`Edytuj kategorię ${category.name}`} aria-label={`Edytuj kategorię ${category.name}`}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={(e) => handleDeleteClick(e, category.id, category.name)} title={`Usuń kategorię ${category.name}`} aria-label={`Usuń kategorię ${category.name}`}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 h-8 w-8" onClick={(e) => handleDeleteClick(e, category.id, category.name)} title={`Usuń kategorię ${category.name}`} aria-label={`Usuń kategorię ${category.name}`}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                       <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors flex-shrink-0" aria-hidden="true" />
@@ -239,16 +245,17 @@ const CategoryList: React.FC<CategoryListProps> = ({
                 </div>
                  {/* Mobile Chevron - always visible unless editing */}
                  {!isEditing && <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors md:hidden flex-shrink-0" aria-hidden="true" />}
-            </div>
-            <div className="mt-2">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
-                <span>{stats.completedTasks} z {stats.totalTasks} ukończonych</span>
-                <span>{stats.completionPercentage}%</span>
               </div>
-              <Progress value={stats.completionPercentage} className="h-2" />
+              <div className="mt-2">
+                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <span>{stats.completedTasks} z {stats.totalTasks} ukończonych</span>
+                  <span>{stats.completionPercentage}%</span>
+                </div>
+                {/* Restore Progress Bar */}
+                <Progress value={stats.completionPercentage} className="h-2" />
+              </div>
             </div>
-          </div>
-        </SwipeableItem>
+          </SwipeableItem>
         );
       })}
       <div className="pt-4 text-center">
