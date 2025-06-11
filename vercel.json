@@ -45,6 +45,20 @@
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
+    },
+    {
+      "src": "/api/costs",
+      "dest": "api/costs.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "src": "/api/costs/(.*)",
+      "dest": "api/costs.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
     }
   ]
 }

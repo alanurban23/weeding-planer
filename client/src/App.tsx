@@ -9,6 +9,7 @@ import LoadingSpinner from "./components/ui/loading-spinner";
 const Home = lazy(() => import("@/pages/home"));
 const CategoryPage = lazy(() => import("@/pages/category"));
 const NotFound = lazy(() => import("@/pages/not-found"));
+const WeedingBudgetPage = lazy(() => import("@/pages/weeding-budget"));
 
 // Tworzenie routera z użyciem createBrowserRouter zamiast wouter
 const router = createBrowserRouter([
@@ -20,6 +21,10 @@ const router = createBrowserRouter([
   {
     path: "/category/:categoryId",
     element: <CategoryPage />,
+  },
+  {
+    path: "/weeding-budget",
+    element: <WeedingBudgetPage />,
   }
 ]);
 

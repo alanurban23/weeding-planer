@@ -23,7 +23,7 @@ import CategoryList from '@/components/category-list';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GlobalFab } from '@/components/global-fab';
-import BudgetTracker from '@/components/budget-tracker'; // Import the new component
+import BudgetTracker from '@/components/budget-tracker';
 
 export default function Home() {
   const { toast } = useToast();
