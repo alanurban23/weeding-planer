@@ -23,7 +23,7 @@ import CategoryList from '@/components/category-list';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GlobalFab } from '@/components/global-fab';
-import BudgetWidget from '@/components/budget-widget';
+import BudgetTracker from '@/components/budget-tracker';
 
 export default function Home() {
   const { toast } = useToast();
@@ -444,7 +444,7 @@ export default function Home() {
             </Card>
 
             {/* Item 3: Sekcja Budżetu (Bottom-Left) */}
-            <BudgetWidget />
+            <BudgetTracker />
 
             {/* Item 4: Lista kategorii (Bottom-Right) */}
             <div className="mt-6 md:mt-0"> {/* Remove top margin on desktop */}

@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import BudgetTracker from '@/components/budget-tracker';
 import {
   Table,
   TableBody,
@@ -25,7 +26,8 @@ const WeedingBudgetPage: React.FC = () => {
   });
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-8 space-y-6">
+      <BudgetTracker />
       <Card>
         <CardHeader>
           <CardTitle>Budżet Weselny</CardTitle>
