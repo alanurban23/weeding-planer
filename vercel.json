@@ -59,6 +59,14 @@
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
+    },
+    {
+      "src": "/weeding-budget",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/weeding-budget/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
