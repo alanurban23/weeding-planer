@@ -20,6 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 const TASKS_TABLE = 'tasks';
+const CATEGORIES_TABLE = 'categories';
 
 // --- Helper Function for Parsing Category ID ---
 function parseCategoryId(id_category) {
@@ -49,6 +50,21 @@ const formatTask = (task) => {
     // Add category name if needed via separate query or join in the future
   };
 };
+
+// Fetch name of category by id
+async function fetchCategoryName(id) {
+  if (id === null || id === undefined) return null;
+  const { data, error } = await supabase
+    .from(CATEGORIES_TABLE)
+    .select('name')
+    .eq('id', id)
+    .single();
+  if (error) {
+    console.error('Failed to fetch category name', id, error.message);
+    return null;
+  }
+  return data?.name || null;
+}
 
 
 // Helper function to parse JSON body from request stream
@@ -106,11 +122,24 @@ export default async function handler(req, res) {
         .select('*')
         .order('created_at', { ascending: false });
 
-      const { data, error, status } = await query;
+      const { data, error } = await query;
       if (error) throw error;
-      const formattedData = data?.map(formatTask) || [];
-      console.log(`Returning ${formattedData.length} tasks.`);
-      return res.status(200).json(formattedData);
+      let tasks = data?.map(formatTask) || [];
+
+      const categoryIds = [...new Set(tasks.map(t => t.id_category).filter(id => id))];
+      if (categoryIds.length > 0) {
+        const { data: categoriesData, error: catErr } = await supabase
+          .from(CATEGORIES_TABLE)
+          .select('id,name')
+          .in('id', categoryIds);
+        if (!catErr && categoriesData) {
+          const map = new Map(categoriesData.map(c => [c.id, c.name]));
+          tasks = tasks.map(t => ({ ...t, category: t.category || map.get(t.id_category) || null }));
+        }
+      }
+
+      console.log(`Returning ${tasks.length} tasks.`);
+      return res.status(200).json(tasks);
     }
 
     // --- POST /api/tasks ---
@@ -122,14 +151,17 @@ export default async function handler(req, res) {
       if (!title || typeof title !== 'string' || title.trim() === '') {
         return res.status(400).json({ error: 'Task title is required.' });
       }
+      const categoryId = parseCategoryId(id_category);
+      const categoryName = await fetchCategoryName(categoryId);
       const taskToInsert = {
         title: title.trim(),
         notes: Array.isArray(notes) ? notes : [],
         completed: Boolean(completed) || false,
         due_date: dueDate || null,
-        id_category: parseCategoryId(id_category),
+        id_category: categoryId,
+        category: categoryName || null,
       };
-      const { data, error, status } = await supabase.from(TASKS_TABLE).insert(taskToInsert).select().single();
+      const { data, error } = await supabase.from(TASKS_TABLE).insert(taskToInsert).select().single();
       if (error) throw error;
       console.log(`Task added with ID ${data?.id}.`);
       return res.status(201).json(formatTask(data));
@@ -168,7 +200,14 @@ export default async function handler(req, res) {
         if (notes !== undefined) taskToUpdate.notes = Array.isArray(notes) ? notes : [];
         if (completed !== undefined) taskToUpdate.completed = Boolean(completed);
         if (dueDate !== undefined) taskToUpdate.due_date = dueDate;
-        if (id_category !== undefined) taskToUpdate.id_category = parseCategoryId(id_category);
+        if (id_category !== undefined) {
+            const parsedCat = parseCategoryId(id_category);
+            taskToUpdate.id_category = parsedCat;
+            const catName = await fetchCategoryName(parsedCat);
+            if (catName !== null) {
+                taskToUpdate.category = catName;
+            }
+        }
 
         if (Object.keys(taskToUpdate).length === 0) {
            return res.status(400).json({ error: 'No valid fields provided for update.' });
