@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface Cost {
   id: number;
@@ -116,7 +117,12 @@ const BudgetTracker: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Budżet Weselny</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          Budżet Weselny
+          <Link to="/weeding-budget" className="text-muted-foreground hover:text-primary" aria-label="Przejdź do pełnego budżetu">
+            <ExternalLink className="w-4 h-4" />
+          </Link>
+        </CardTitle>
         <CardDescription>
           Całkowity budżet: {TOTAL_BUDGET.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
         </CardDescription>
