@@ -1,20 +1,34 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"; // Added ChartConfig
-import { PieChart, Pie, Cell, Tooltip } from "recharts"; // Import PieChart elements
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { PieChart, Pie, Cell } from "recharts";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Cost {
   id: number;
   name: string;
   value: number; // API returns number now
   created_at: string;
+  category_id: number | null;
+  category_name?: string | null;
+}
+
+interface Category {
+  id: number;
+  name: string;
 }
 
 // Define a fixed total budget (can be made dynamic later)
@@ -24,6 +38,7 @@ const BudgetTracker: React.FC = () => {
   const { toast } = useToast();
   const [costName, setCostName] = useState('');
   const [costValue, setCostValue] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
 
   // Fetch costs
   const { data: costs = [], isLoading: isLoadingCosts } = useQuery<Cost[]>({
@@ -31,14 +46,20 @@ const BudgetTracker: React.FC = () => {
     queryFn: () => apiRequest('/api/costs'),
   });
 
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
+    queryFn: () => apiRequest('/api/categories'),
+  });
+
   // Add cost mutation
   const addCostMutation = useMutation({
-    mutationFn: (newCost: { name: string; value: number }) =>
+    mutationFn: (newCost: { name: string; value: number; category_id: number | null }) =>
       apiRequest('/api/costs', 'POST', newCost),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/costs'] });
       setCostName('');
       setCostValue('');
+      setSelectedCategoryId('');
       toast({
         title: "Koszt dodany",
         description: "Nowy koszt został pomyślnie dodany.",
@@ -64,7 +85,16 @@ const BudgetTracker: React.FC = () => {
       });
       return;
     }
-    addCostMutation.mutate({ name: costName.trim(), value: numericValue });
+    const categoryId = selectedCategoryId ? parseInt(selectedCategoryId, 10) : null;
+    if (selectedCategoryId && Number.isNaN(categoryId)) {
+      toast({
+        title: "Błąd walidacji",
+        description: "Wybierz poprawną kategorię.",
+        variant: "destructive",
+      });
+      return;
+    }
+    addCostMutation.mutate({ name: costName.trim(), value: numericValue, category_id: categoryId });
   };
 
   // Calculate total spent
@@ -74,6 +104,27 @@ const BudgetTracker: React.FC = () => {
 
   const remainingBudget = TOTAL_BUDGET - totalSpent;
 
+  const categoryMap = useMemo(() => {
+    const map = new Map<number, string>();
+    categories.forEach((category) => {
+      map.set(category.id, category.name);
+    });
+    return map;
+  }, [categories]);
+
+  const categoryTotals = useMemo(() => {
+    const totals = new Map<string, { categoryId: number | null; name: string; total: number }>();
+    costs.forEach((cost) => {
+      const categoryId = cost.category_id ?? null;
+      const mapKey = categoryId === null ? 'uncategorized' : String(categoryId);
+      const name = cost.category_name ?? (categoryId !== null ? categoryMap.get(categoryId) ?? `Kategoria #${categoryId}` : 'Bez kategorii');
+      const entry = totals.get(mapKey) ?? { categoryId, name: name ?? 'Bez kategorii', total: 0 };
+      entry.total += cost.value;
+      totals.set(mapKey, entry);
+    });
+    return Array.from(totals.values()).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
+  }, [costs, categoryMap]);
+
   // Generate distinct colors for costs (simple approach)
   const generateColor = (index: number, total: number): string => {
     const hue = (index * (360 / (total + 1))) % 360; // Distribute hues, +1 for remaining
@@ -82,10 +133,10 @@ const BudgetTracker: React.FC = () => {
 
   // Prepare data for the pie chart - individual costs + remaining
   const chartData = useMemo(() => {
-    const costSlices = costs.map((cost, index) => ({
-      name: cost.name, // Use individual cost name
-      value: cost.value,
-      fill: generateColor(index, costs.length),
+    const costSlices = categoryTotals.map((category, index) => ({
+      name: category.name,
+      value: category.total,
+      fill: generateColor(index, categoryTotals.length),
     }));
     // Add remaining budget slice
     costSlices.push({
@@ -94,23 +145,23 @@ const BudgetTracker: React.FC = () => {
       fill: "hsl(var(--muted))", // Use a muted color for remaining
     });
     return costSlices;
-  }, [costs, remainingBudget]);
+  }, [categoryTotals, remainingBudget]);
 
   // Update chartConfig dynamically based on costs
-   const chartConfig = useMemo(() => {
-     const config: ChartConfig = {};
-     costs.forEach((cost, index) => {
-       config[cost.name] = { // Use cost name as key
-         label: cost.name,
-         color: generateColor(index, costs.length),
-       };
-     });
-     config.Pozostało = { // Add config for remaining
-       label: "Pozostało",
-       color: "hsl(var(--muted))",
-     };
-     return config;
-   }, [costs]);
+  const chartConfig = useMemo(() => {
+    const config: ChartConfig = {};
+    categoryTotals.forEach((category, index) => {
+      config[category.name] = {
+        label: category.name,
+        color: generateColor(index, categoryTotals.length),
+      };
+    });
+    config.Pozostało = { // Add config for remaining
+      label: "Pozostało",
+      color: "hsl(var(--muted))",
+    };
+    return config;
+  }, [categoryTotals]);
 
 
   return (
@@ -139,12 +190,12 @@ const BudgetTracker: React.FC = () => {
                       const displayName = item?.payload?.name || _name; // Get name from payload
                       return (
                         <div className="flex flex-col gap-0.5">
-                           <span className="font-medium text-foreground">
-                             {displayName}: {numericValue.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
-                           </span>
-                           <span className="text-xs text-muted-foreground">
-                             ({percentage}% całości)
-                           </span>
+                          <span className="font-medium text-foreground">
+                            {displayName}: {numericValue.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ({percentage}% całości)
+                          </span>
                         </div>
                       );
                     }}
@@ -164,14 +215,30 @@ const BudgetTracker: React.FC = () => {
               </Pie>
             </PieChart>
           </ChartContainer>
-           <div className="text-center mt-2">
-             <p className="text-lg font-medium">
-               Wydano: {totalSpent.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
-             </p>
-             <p className="text-sm text-muted-foreground">
-               Pozostało: {remainingBudget.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
-             </p>
-           </div>
+          <div className="text-center mt-2">
+            <p className="text-lg font-medium">
+              Wydano: {totalSpent.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Pozostało: {remainingBudget.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+            </p>
+          </div>
+          <div className="mt-4 w-full">
+            <h4 className="text-sm font-semibold mb-2">Wydatki według kategorii</h4>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              {categoryTotals.map((category) => (
+                <li key={category.categoryId ?? 'uncategorized'} className="flex justify-between">
+                  <span>{category.name}</span>
+                  <span className="font-medium text-foreground">
+                    {category.total.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                  </span>
+                </li>
+              ))}
+              {categoryTotals.length === 0 && !isLoadingCosts && (
+                <li className="text-center text-xs text-muted-foreground">Brak wydatków do wyświetlenia.</li>
+              )}
+            </ul>
+          </div>
         </div>
 
         {/* Add Cost Form Section */}
@@ -188,6 +255,26 @@ const BudgetTracker: React.FC = () => {
                 placeholder="np. Sala weselna"
                 required
               />
+            </div>
+            <div>
+              <Label htmlFor="costCategory">Kategoria</Label>
+              <Select
+                value={selectedCategoryId}
+                onValueChange={(value) => setSelectedCategoryId(value)}
+                disabled={isLoadingCategories}
+              >
+                <SelectTrigger id="costCategory">
+                  <SelectValue placeholder={isLoadingCategories ? 'Ładowanie kategorii...' : 'Wybierz kategorię (opcjonalnie)'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Bez kategorii</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="costValue">Wartość (PLN)</Label>

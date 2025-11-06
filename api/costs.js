@@ -21,6 +21,18 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 const COSTS_TABLE = 'costs';
 
+function parseCategoryId(categoryId) {
+  if (categoryId === undefined || categoryId === null || categoryId === '') {
+    return null;
+  }
+  const parsed = parseInt(String(categoryId), 10);
+  if (Number.isNaN(parsed)) {
+    console.warn(`Received invalid category_id "${categoryId}". Treating as null.`);
+    return null;
+  }
+  return parsed;
+}
+
 // Helper function to parse JSON body from request stream
 async function parseJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -73,14 +85,25 @@ export default async function handler(req, res) {
       console.log('GET /api/costs');
       const { data, error } = await supabase
         .from(COSTS_TABLE)
-        .select('*')
+        .select(`
+          id,
+          name,
+          value,
+          created_at,
+          category_id,
+          category:categories(name)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       // Ensure value is returned as a number
       const formattedData = data?.map(cost => ({
-        ...cost,
-        value: parseFloat(cost.value) // Convert DECIMAL to number
+        id: cost.id,
+        name: cost.name,
+        created_at: cost.created_at,
+        value: parseFloat(cost.value), // Convert DECIMAL to number
+        category_id: parseCategoryId(cost.category_id),
+        category_name: cost.category?.name ?? null,
       })) || [];
       console.log(`Returning ${formattedData.length} costs.`);
       return res.status(200).json(formattedData);
@@ -90,7 +113,7 @@ export default async function handler(req, res) {
     if (method === 'POST' && pathSegments.length === 2 && pathSegments[1] === 'costs') {
       const body = await parseJsonBody(req);
       console.log('POST /api/costs - Parsed Body:', body);
-      const { name, value } = body;
+      const { name, value, category_id } = body;
 
       if (!name || typeof name !== 'string' || name.trim() === '') {
         return res.status(400).json({ error: 'Cost name is required.' });
@@ -100,14 +123,25 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid positive cost value is required.' });
       }
 
+      const parsedCategoryId = parseCategoryId(category_id);
+      if (category_id !== undefined && category_id !== null && parsedCategoryId === null) {
+        return res.status(400).json({ error: 'category_id must be a valid number or null.' });
+      }
+
       const costToInsert = {
         name: name.trim(),
         value: numericValue,
+        category_id: parsedCategoryId,
       };
       const { data, error } = await supabase.from(COSTS_TABLE).insert(costToInsert).select().single();
       if (error) throw error;
 
-      const formattedCost = { ...data, value: parseFloat(data.value) };
+      const formattedCost = {
+        ...data,
+        value: parseFloat(data.value),
+        category_id: parseCategoryId(data.category_id),
+        category_name: null,
+      };
       console.log(`Cost added with ID ${formattedCost.id}.`);
       return res.status(201).json(formattedCost);
     }
