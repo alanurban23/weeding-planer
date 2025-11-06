@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GlobalFab } from '@/components/global-fab';
 import BudgetTracker from '@/components/budget-tracker';
+import { Link } from 'react-router-dom';
 
 export default function Home() {
   const { toast } = useToast();
@@ -291,6 +292,9 @@ export default function Home() {
             >
               Zarządzaj kategoriami
             </Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/guest-list">Lista gości</Link>
+            </Button>
           </div>
 
           {/* Desktop header layout - unchanged */}
@@ -298,9 +302,14 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-gray-900">
               CodeNinja - Planer Weselny
             </h1>
-            <Button onClick={() => setShowCategoryManager(true)}>
-              Zarządzaj kategoriami
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button asChild variant="outline">
+                <Link to="/guest-list">Lista gości</Link>
+              </Button>
+              <Button onClick={() => setShowCategoryManager(true)}>
+                Zarządzaj kategoriami
+              </Button>
+            </div>
           </div>
         </div>
       </header>
