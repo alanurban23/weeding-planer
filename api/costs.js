@@ -84,6 +84,7 @@ export default async function handler(req, res) {
     if (method === 'GET' && pathSegments.length === 2 && pathSegments[1] === 'costs') {
       console.log('GET /api/costs');
       let rows = [];
+      let fallbackCategoryMap = new Map();
 
       const { data, error } = await supabase
         .from(COSTS_TABLE)
@@ -98,10 +99,11 @@ export default async function handler(req, res) {
         .order('created_at', { ascending: false });
 
       if (error) {
-        const errorMessage = `${error.code ?? ''} ${error.message ?? ''}`;
-        const shouldFallback =
-          (typeof error.code === 'string' && ['42703', 'PGRST102'].includes(error.code)) ||
-          (typeof error.message === 'string' && /category/i.test(error.message));
+        const errorFragments = [error.code, error.message, error.details, error.hint]
+          .filter(Boolean)
+          .map((fragment) => String(fragment));
+        const errorMessage = errorFragments.join(' ').trim();
+        const shouldFallback = errorFragments.some((fragment) => /category/i.test(fragment));
 
         if (shouldFallback) {
           const { data: fallbackData, error: fallbackError } = await supabase
@@ -110,7 +112,8 @@ export default async function handler(req, res) {
               id,
               name,
               value,
-              created_at
+              created_at,
+              category_id
             `)
             .order('created_at', { ascending: false });
 
@@ -119,8 +122,34 @@ export default async function handler(req, res) {
             throw fallbackError;
           }
 
-          console.warn('Falling back to basic cost query due to:', errorMessage.trim());
-          rows = fallbackData ?? [];
+          const fallbackRows = fallbackData ?? [];
+          const categoryIds = Array.from(
+            new Set(
+              fallbackRows
+                .map((row) => parseCategoryId(row.category_id))
+                .filter((id) => id !== null),
+            ),
+          );
+
+          if (categoryIds.length > 0) {
+            const { data: categoryData, error: categoriesError } = await supabase
+              .from('categories')
+              .select('id, name')
+              .in('id', categoryIds);
+
+            if (categoriesError) {
+              console.warn('Failed to load categories for fallback /api/costs query:', categoriesError);
+            } else if (Array.isArray(categoryData)) {
+              fallbackCategoryMap = new Map(
+                categoryData
+                  .map((category) => [parseCategoryId(category.id), category.name])
+                  .filter(([id]) => id !== null),
+              );
+            }
+          }
+
+          console.warn('Falling back to basic cost query due to:', errorMessage);
+          rows = fallbackRows;
         } else {
           throw error;
         }
@@ -129,17 +158,20 @@ export default async function handler(req, res) {
       }
 
       // Ensure value is returned as a number
-      const formattedData = rows.map(cost => {
+      const formattedData = rows.map((cost) => {
         const numericValue =
           typeof cost.value === 'number' ? cost.value : parseFloat(String(cost.value ?? '0'));
+        const parsedCategoryId = 'category_id' in cost ? parseCategoryId(cost.category_id) : null;
 
         return {
           id: cost.id,
           name: cost.name,
           created_at: cost.created_at,
           value: Number.isFinite(numericValue) ? numericValue : 0,
-          category_id: 'category_id' in cost ? parseCategoryId(cost.category_id) : null,
-          category_name: cost.category?.name ?? null,
+          category_id: parsedCategoryId,
+          category_name:
+            cost.category?.name ??
+            (parsedCategoryId !== null ? fallbackCategoryMap.get(parsedCategoryId) ?? null : null),
         };
       });
       console.log(`Returning ${formattedData.length} costs.`);
