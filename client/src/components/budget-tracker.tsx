@@ -38,7 +38,7 @@ const BudgetTracker: React.FC = () => {
   const { toast } = useToast();
   const [costName, setCostName] = useState('');
   const [costValue, setCostValue] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('none');
 
   // Fetch costs
   const { data: costs = [], isLoading: isLoadingCosts } = useQuery<Cost[]>({
@@ -59,7 +59,7 @@ const BudgetTracker: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['/api/costs'] });
       setCostName('');
       setCostValue('');
-      setSelectedCategoryId('');
+      setSelectedCategoryId('none');
       toast({
         title: "Koszt dodany",
         description: "Nowy koszt został pomyślnie dodany.",
@@ -85,8 +85,8 @@ const BudgetTracker: React.FC = () => {
       });
       return;
     }
-    const categoryId = selectedCategoryId ? parseInt(selectedCategoryId, 10) : null;
-    if (selectedCategoryId && Number.isNaN(categoryId)) {
+    const categoryId = selectedCategoryId && selectedCategoryId !== 'none' ? parseInt(selectedCategoryId, 10) : null;
+    if (selectedCategoryId && selectedCategoryId !== 'none' && Number.isNaN(categoryId)) {
       toast({
         title: "Błąd walidacji",
         description: "Wybierz poprawną kategorię.",
@@ -267,7 +267,7 @@ const BudgetTracker: React.FC = () => {
                   <SelectValue placeholder={isLoadingCategories ? 'Ładowanie kategorii...' : 'Wybierz kategorię (opcjonalnie)'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Bez kategorii</SelectItem>
+                  <SelectItem value="none">Bez kategorii</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={String(category.id)}>
                       {category.name}
