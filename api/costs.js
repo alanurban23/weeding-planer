@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { URL } from 'url';
+import nodeFetch from 'node-fetch';
 
 // Load environment variables
 dotenv.config();
@@ -17,6 +18,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // --- Initialize Supabase Client ---
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: { schema: 'public' },
+  global: {
+    fetch: nodeFetch,
+  },
 });
 
 const COSTS_TABLE = 'costs';
