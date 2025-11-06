@@ -83,6 +83,8 @@ export default async function handler(req, res) {
     // --- GET /api/costs ---
     if (method === 'GET' && pathSegments.length === 2 && pathSegments[1] === 'costs') {
       console.log('GET /api/costs');
+      let rows = [];
+
       const { data, error } = await supabase
         .from(COSTS_TABLE)
         .select(`
@@ -95,16 +97,51 @@ export default async function handler(req, res) {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        const errorMessage = `${error.code ?? ''} ${error.message ?? ''}`;
+        const shouldFallback =
+          (typeof error.code === 'string' && ['42703', 'PGRST102'].includes(error.code)) ||
+          (typeof error.message === 'string' && /category/i.test(error.message));
+
+        if (shouldFallback) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from(COSTS_TABLE)
+            .select(`
+              id,
+              name,
+              value,
+              created_at
+            `)
+            .order('created_at', { ascending: false });
+
+          if (fallbackError) {
+            console.error('Fallback query for /api/costs failed:', fallbackError);
+            throw fallbackError;
+          }
+
+          console.warn('Falling back to basic cost query due to:', errorMessage.trim());
+          rows = fallbackData ?? [];
+        } else {
+          throw error;
+        }
+      } else {
+        rows = data ?? [];
+      }
+
       // Ensure value is returned as a number
-      const formattedData = data?.map(cost => ({
-        id: cost.id,
-        name: cost.name,
-        created_at: cost.created_at,
-        value: parseFloat(cost.value), // Convert DECIMAL to number
-        category_id: parseCategoryId(cost.category_id),
-        category_name: cost.category?.name ?? null,
-      })) || [];
+      const formattedData = rows.map(cost => {
+        const numericValue =
+          typeof cost.value === 'number' ? cost.value : parseFloat(String(cost.value ?? '0'));
+
+        return {
+          id: cost.id,
+          name: cost.name,
+          created_at: cost.created_at,
+          value: Number.isFinite(numericValue) ? numericValue : 0,
+          category_id: 'category_id' in cost ? parseCategoryId(cost.category_id) : null,
+          category_name: cost.category?.name ?? null,
+        };
+      });
       console.log(`Returning ${formattedData.length} costs.`);
       return res.status(200).json(formattedData);
     }

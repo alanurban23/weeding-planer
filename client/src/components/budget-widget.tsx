@@ -26,13 +26,20 @@ const BudgetWidget: React.FC = () => {
     queryFn: () => apiRequest('/api/costs'),
   });
 
-  const totalSpent = useMemo(() => costs.reduce((sum, c) => sum + c.value, 0), [costs]);
+  const sortedCosts = useMemo(
+    () =>
+      [...costs].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      ),
+    [costs],
+  );
+  const totalSpent = useMemo(() => sortedCosts.reduce((sum, c) => sum + c.value, 0), [sortedCosts]);
   const remaining = TOTAL_BUDGET - totalSpent;
-  const recentCosts = useMemo(() => costs.slice(0, 5), [costs]);
+  const recentCosts = useMemo(() => sortedCosts.slice(0, 5), [sortedCosts]);
 
   const categoryTotals = useMemo(() => {
     const totals = new Map<string, { name: string; total: number }>();
-    costs.forEach((cost) => {
+    sortedCosts.forEach((cost) => {
       const key = cost.category_id != null ? String(cost.category_id) : 'uncategorized';
       const name = cost.category_name ?? (cost.category_id != null ? `Kategoria #${cost.category_id}` : 'Bez kategorii');
       const current = totals.get(key) ?? { name, total: 0 };
@@ -40,7 +47,7 @@ const BudgetWidget: React.FC = () => {
       totals.set(key, current);
     });
     return Array.from(totals.values());
-  }, [costs]);
+  }, [sortedCosts]);
 
   const generateColor = (index: number, total: number): string => {
     const hue = (index * (360 / Math.max(total, 1))) % 360;
