@@ -83,6 +83,9 @@ export default async function handler(req, res) {
     // --- GET /api/costs ---
     if (method === 'GET' && pathSegments.length === 2 && pathSegments[1] === 'costs') {
       console.log('GET /api/costs');
+      let rows = [];
+      let fallbackCategoryMap = new Map();
+
       const { data, error } = await supabase
         .from(COSTS_TABLE)
         .select(`
@@ -95,16 +98,82 @@ export default async function handler(req, res) {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        const errorFragments = [error.code, error.message, error.details, error.hint]
+          .filter(Boolean)
+          .map((fragment) => String(fragment));
+        const errorMessage = errorFragments.join(' ').trim();
+        const shouldFallback = errorFragments.some((fragment) => /category/i.test(fragment));
+
+        if (shouldFallback) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from(COSTS_TABLE)
+            .select(`
+              id,
+              name,
+              value,
+              created_at,
+              category_id
+            `)
+            .order('created_at', { ascending: false });
+
+          if (fallbackError) {
+            console.error('Fallback query for /api/costs failed:', fallbackError);
+            throw fallbackError;
+          }
+
+          const fallbackRows = fallbackData ?? [];
+          const categoryIds = Array.from(
+            new Set(
+              fallbackRows
+                .map((row) => parseCategoryId(row.category_id))
+                .filter((id) => id !== null),
+            ),
+          );
+
+          if (categoryIds.length > 0) {
+            const { data: categoryData, error: categoriesError } = await supabase
+              .from('categories')
+              .select('id, name')
+              .in('id', categoryIds);
+
+            if (categoriesError) {
+              console.warn('Failed to load categories for fallback /api/costs query:', categoriesError);
+            } else if (Array.isArray(categoryData)) {
+              fallbackCategoryMap = new Map(
+                categoryData
+                  .map((category) => [parseCategoryId(category.id), category.name])
+                  .filter(([id]) => id !== null),
+              );
+            }
+          }
+
+          console.warn('Falling back to basic cost query due to:', errorMessage);
+          rows = fallbackRows;
+        } else {
+          throw error;
+        }
+      } else {
+        rows = data ?? [];
+      }
+
       // Ensure value is returned as a number
-      const formattedData = data?.map(cost => ({
-        id: cost.id,
-        name: cost.name,
-        created_at: cost.created_at,
-        value: parseFloat(cost.value), // Convert DECIMAL to number
-        category_id: parseCategoryId(cost.category_id),
-        category_name: cost.category?.name ?? null,
-      })) || [];
+      const formattedData = rows.map((cost) => {
+        const numericValue =
+          typeof cost.value === 'number' ? cost.value : parseFloat(String(cost.value ?? '0'));
+        const parsedCategoryId = 'category_id' in cost ? parseCategoryId(cost.category_id) : null;
+
+        return {
+          id: cost.id,
+          name: cost.name,
+          created_at: cost.created_at,
+          value: Number.isFinite(numericValue) ? numericValue : 0,
+          category_id: parsedCategoryId,
+          category_name:
+            cost.category?.name ??
+            (parsedCategoryId !== null ? fallbackCategoryMap.get(parsedCategoryId) ?? null : null),
+        };
+      });
       console.log(`Returning ${formattedData.length} costs.`);
       return res.status(200).json(formattedData);
     }
