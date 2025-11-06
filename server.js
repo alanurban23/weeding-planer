@@ -53,6 +53,7 @@ const createApiRouter = (basePath, handlerPath) => {
 createApiRouter('/api/tasks', './api/tasks.js');
 createApiRouter('/api/notes', './api/notes.js');
 createApiRouter('/api/categories', './api/categories.js');
+createApiRouter('/api/guests', './api/guests.js');
 
 // Uruchom serwer
 app.listen(PORT, () => {});

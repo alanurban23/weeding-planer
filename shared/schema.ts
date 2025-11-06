@@ -93,3 +93,43 @@ export interface Note {
 
 export type InsertNote = z.infer<typeof insertNoteSchema>;
 export type UpdateNote = z.infer<typeof updateNoteSchema>;
+
+// Guests schema
+export const guests = pgTable("guests", {
+  id: serial("id").primaryKey(),
+  full_name: text("full_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  side: text("side"),
+  rsvp_status: text("rsvp_status").notNull().default("pending"),
+  notes: text("notes"),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+});
+
+const baseGuestSchema = z.object({
+  id: z.number(),
+  fullName: z.string(),
+  email: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  side: z.string().nullable().optional(),
+  rsvpStatus: z.enum(["pending", "confirmed", "declined"]).default("pending"),
+  notes: z.string().nullable().optional(),
+  createdAt: z.union([z.date(), z.string()]).optional(),
+});
+
+export const insertGuestSchema = baseGuestSchema.omit({ id: true, createdAt: true });
+export const updateGuestSchema = baseGuestSchema.partial();
+
+export interface Guest {
+  id: number;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  side: string | null;
+  rsvpStatus: "pending" | "confirmed" | "declined";
+  notes: string | null;
+  createdAt: Date | string;
+}
+
+export type InsertGuest = z.infer<typeof insertGuestSchema>;
+export type UpdateGuest = z.infer<typeof updateGuestSchema>;
