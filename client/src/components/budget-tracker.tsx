@@ -20,10 +20,14 @@ import {
 interface Cost {
   id: number;
   name: string;
-  value: number; // API returns number now
+  value: number; // Kwota zapłacona lub do zapłaty
   created_at: string;
   category_id: number | null;
   category_name?: string | null;
+  total_amount?: number | null; // Całkowita kwota (jeśli value to tylko część)
+  due_date?: string | null; // Termin płatności
+  paid_date?: string | null; // Data zapłaty
+  notes?: string | null; // Notatki
 }
 
 interface Category {
