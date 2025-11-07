@@ -157,11 +157,11 @@ const EditCostDialog: React.FC<EditCostDialogProps> = ({ cost, open, onOpenChang
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Payment History Section */}
-          {cost && cost.total_amount && (
+          {cost && (
             <div>
               <PaymentHistory
                 costId={cost.id}
-                totalAmount={cost.total_amount}
+                totalAmount={cost.total_amount || cost.value}
                 onUpdate={handlePaymentUpdate}
               />
             </div>
