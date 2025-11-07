@@ -29,6 +29,8 @@ interface Cost {
   due_date?: string | null; // Termin płatności
   paid_date?: string | null; // Data zapłaty
   notes?: string | null; // Notatki
+  amount_paid?: number; // Suma płatności z historii
+  payment_status?: 'unpaid' | 'partial' | 'paid'; // Status płatności
 }
 
 interface Category {

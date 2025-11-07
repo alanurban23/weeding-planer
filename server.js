@@ -55,6 +55,7 @@ createApiRouter('/api/notes', './api/notes.js');
 createApiRouter('/api/categories', './api/categories.js');
 createApiRouter('/api/guests', './api/guests.js');
 createApiRouter('/api/costs', './api/costs.js');
+createApiRouter('/api/payments', './api/payments.js');
 
 // Uruchom serwer
 app.listen(PORT, () => {});

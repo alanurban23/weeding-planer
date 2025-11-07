@@ -99,6 +99,8 @@ export default async function handler(req, res) {
           due_date,
           paid_date,
           notes,
+          amount_paid,
+          payment_status,
           category:categories(name)
         `)
         .order('created_at', { ascending: false });
@@ -116,6 +118,8 @@ export default async function handler(req, res) {
         due_date: cost.due_date,
         paid_date: cost.paid_date,
         notes: cost.notes,
+        amount_paid: cost.amount_paid ? parseFloat(cost.amount_paid) : 0,
+        payment_status: cost.payment_status || 'unpaid',
       })) || [];
       console.log(`Returning ${formattedData.length} costs.`);
       return res.status(200).json(formattedData);

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import PaymentHistory from './payment-history';
 
 interface Cost {
   id: number;
@@ -34,6 +36,8 @@ interface Cost {
   due_date?: string | null;
   paid_date?: string | null;
   notes?: string | null;
+  amount_paid?: number;
+  payment_status?: 'unpaid' | 'partial' | 'paid';
 }
 
 interface Category {
@@ -136,17 +140,36 @@ const EditCostDialog: React.FC<EditCostDialogProps> = ({ cost, open, onOpenChang
     updateCostMutation.mutate(dataToSend);
   };
 
+  const handlePaymentUpdate = () => {
+    // Odśwież dane po aktualizacji płatności
+    queryClient.invalidateQueries({ queryKey: ['/api/costs'] });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edytuj koszt</DialogTitle>
           <DialogDescription>
-            Zaktualizuj informacje o koszcie, dodaj daty płatności i notatki.
+            Zaktualizuj informacje o koszcie i zarządzaj płatnościami.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Payment History Section */}
+          {cost && cost.total_amount && (
+            <div>
+              <PaymentHistory
+                costId={cost.id}
+                totalAmount={cost.total_amount}
+                onUpdate={handlePaymentUpdate}
+              />
+            </div>
+          )}
+
+          {/* Edit Form Section */}
+          <div>
+            <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="edit-name">Nazwa kosztu *</Label>
             <Input
@@ -253,23 +276,25 @@ const EditCostDialog: React.FC<EditCostDialogProps> = ({ cost, open, onOpenChang
             />
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={updateCostMutation.isPending}
-            >
-              Anuluj
-            </Button>
-            <Button type="submit" disabled={updateCostMutation.isPending}>
-              {updateCostMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Zapisz zmiany
-            </Button>
-          </DialogFooter>
-        </form>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={updateCostMutation.isPending}
+                >
+                  Anuluj
+                </Button>
+                <Button type="submit" disabled={updateCostMutation.isPending}>
+                  {updateCostMutation.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Zapisz zmiany
+                </Button>
+              </DialogFooter>
+            </form>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -39,6 +39,8 @@ interface Cost {
   due_date?: string | null;
   paid_date?: string | null;
   notes?: string | null;
+  amount_paid?: number;
+  payment_status?: 'unpaid' | 'partial' | 'paid';
 }
 
 interface Category {
