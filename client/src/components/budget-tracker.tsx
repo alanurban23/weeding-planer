@@ -7,6 +7,7 @@ import { PieChart, Pie, Cell } from "recharts";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import {
@@ -43,6 +44,10 @@ const BudgetTracker: React.FC = () => {
   const [costName, setCostName] = useState('');
   const [costValue, setCostValue] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('none');
+  const [totalAmount, setTotalAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [paidDate, setPaidDate] = useState('');
+  const [notes, setNotes] = useState('');
 
   // Fetch costs
   const { data: costs = [], isLoading: isLoadingCosts } = useQuery<Cost[]>({
@@ -57,13 +62,24 @@ const BudgetTracker: React.FC = () => {
 
   // Add cost mutation
   const addCostMutation = useMutation({
-    mutationFn: (newCost: { name: string; value: number; category_id: number | null }) =>
-      apiRequest('/api/costs', 'POST', newCost),
+    mutationFn: (newCost: {
+      name: string;
+      value: number;
+      category_id: number | null;
+      total_amount?: number | null;
+      due_date?: string | null;
+      paid_date?: string | null;
+      notes?: string | null;
+    }) => apiRequest('/api/costs', 'POST', newCost),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/costs'] });
       setCostName('');
       setCostValue('');
       setSelectedCategoryId('none');
+      setTotalAmount('');
+      setDueDate('');
+      setPaidDate('');
+      setNotes('');
       toast({
         title: "Koszt dodany",
         description: "Nowy koszt został pomyślnie dodany.",
@@ -89,6 +105,17 @@ const BudgetTracker: React.FC = () => {
       });
       return;
     }
+
+    const numericTotalAmount = totalAmount ? parseFloat(totalAmount) : null;
+    if (numericTotalAmount !== null && (isNaN(numericTotalAmount) || numericTotalAmount < numericValue)) {
+      toast({
+        title: "Błąd walidacji",
+        description: "Całkowita kwota musi być większa lub równa kwocie zapłaconej.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const categoryId = selectedCategoryId && selectedCategoryId !== 'none' ? parseInt(selectedCategoryId, 10) : null;
     if (selectedCategoryId && selectedCategoryId !== 'none' && Number.isNaN(categoryId)) {
       toast({
@@ -98,7 +125,16 @@ const BudgetTracker: React.FC = () => {
       });
       return;
     }
-    addCostMutation.mutate({ name: costName.trim(), value: numericValue, category_id: categoryId });
+
+    addCostMutation.mutate({
+      name: costName.trim(),
+      value: numericValue,
+      category_id: categoryId,
+      total_amount: numericTotalAmount,
+      due_date: dueDate || null,
+      paid_date: paidDate || null,
+      notes: notes.trim() || null,
+    });
   };
 
   // Calculate total spent
@@ -250,16 +286,52 @@ const BudgetTracker: React.FC = () => {
           <h3 className="text-lg font-medium mb-4">Dodaj nowy koszt</h3>
           <form onSubmit={handleAddCost} className="space-y-4">
             <div>
-              <Label htmlFor="costName">Nazwa kosztu</Label>
+              <Label htmlFor="costName">Nazwa kosztu *</Label>
               <Input
                 id="costName"
                 type="text"
                 value={costName}
                 onChange={(e) => setCostName(e.target.value)}
-                placeholder="np. Sala weselna"
+                placeholder="np. Kaucja za salę weselną"
                 required
               />
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="costValue">Kwota zapłacona/do zapłaty (PLN) *</Label>
+                <Input
+                  id="costValue"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={costValue}
+                  onChange={(e) => setCostValue(e.target.value)}
+                  placeholder="np. 3500"
+                  required
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Może być kaucją lub częścią płatności
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="costTotal">Całkowita kwota (PLN)</Label>
+                <Input
+                  id="costTotal"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={totalAmount}
+                  onChange={(e) => setTotalAmount(e.target.value)}
+                  placeholder="np. 10000"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Opcjonalne - jeśli koszt to tylko część
+                </p>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="costCategory">Kategoria</Label>
               <Select
@@ -280,19 +352,46 @@ const BudgetTracker: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="costDueDate">Termin płatności</Label>
+                <Input
+                  id="costDueDate"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Kiedy należy zapłacić
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="costPaidDate">Data zapłaty</Label>
+                <Input
+                  id="costPaidDate"
+                  type="date"
+                  value={paidDate}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Kiedy zapłacono
+                </p>
+              </div>
+            </div>
+
             <div>
-              <Label htmlFor="costValue">Wartość (PLN)</Label>
-              <Input
-                id="costValue"
-                type="number"
-                step="0.01"
-                min="0.01"
-                value={costValue}
-                onChange={(e) => setCostValue(e.target.value)}
-                placeholder="np. 15000"
-                required
+              <Label htmlFor="costNotes">Notatki</Label>
+              <Textarea
+                id="costNotes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Dodatkowe informacje o płatności..."
+                rows={3}
               />
             </div>
+
             <Button type="submit" disabled={addCostMutation.isPending}>
               {addCostMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
