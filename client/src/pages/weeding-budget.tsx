@@ -171,6 +171,8 @@ const WeedingBudgetPage: React.FC = () => {
                   <TableRow>
                     <TableHead>Nazwa</TableHead>
                     <TableHead>Kwota</TableHead>
+                    <TableHead className="hidden lg:table-cell">Zapłacone</TableHead>
+                    <TableHead className="hidden lg:table-cell">Pozostało</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden md:table-cell">Daty</TableHead>
                     <TableHead className="text-right">Akcje</TableHead>
@@ -180,7 +182,8 @@ const WeedingBudgetPage: React.FC = () => {
                   {group.items.map((cost) => {
                     const status = getPaymentStatus(cost);
                     const totalAmount = cost.total_amount || cost.value;
-                    const isPartial = cost.total_amount && cost.total_amount > cost.value;
+                    const amountPaid = cost.amount_paid || 0;
+                    const remaining = totalAmount - amountPaid;
 
                     return (
                       <TableRow key={cost.id}>
@@ -195,16 +198,19 @@ const WeedingBudgetPage: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">
-                              {cost.value.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
-                            </p>
-                            {isPartial && (
-                              <p className="text-xs text-muted-foreground">
-                                z {totalAmount.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
-                              </p>
-                            )}
-                          </div>
+                          <p className="font-medium">
+                            {totalAmount.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                          </p>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <p className="font-medium text-green-600">
+                            {amountPaid.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                          </p>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <p className={`font-medium ${remaining > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                            {remaining.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                          </p>
                         </TableCell>
                         <TableCell>
                           <Badge variant={status.variant}>{status.label}</Badge>
