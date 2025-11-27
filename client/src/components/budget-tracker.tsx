@@ -85,8 +85,8 @@ const BudgetTracker: React.FC = () => {
       });
       return;
     }
-    const categoryId = selectedCategoryId ? parseInt(selectedCategoryId, 10) : null;
-    if (selectedCategoryId && Number.isNaN(categoryId)) {
+    const categoryId = selectedCategoryId && selectedCategoryId !== 'uncategorized' ? parseInt(selectedCategoryId, 10) : null;
+    if (selectedCategoryId && selectedCategoryId !== 'uncategorized' && Number.isNaN(categoryId)) {
       toast({
         title: "Błąd walidacji",
         description: "Wybierz poprawną kategorię.",
@@ -267,7 +267,7 @@ const BudgetTracker: React.FC = () => {
                   <SelectValue placeholder={isLoadingCategories ? 'Ładowanie kategorii...' : 'Wybierz kategorię (opcjonalnie)'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Bez kategorii</SelectItem>
+                  <SelectItem value="uncategorized">Bez kategorii</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={String(category.id)}>
                       {category.name}
