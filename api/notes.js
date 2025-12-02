@@ -103,7 +103,7 @@ export default async function handler(req, res) {
       } else if (category === '') {
         query = query.is('id_category', null);
       }
-      query = query.order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: true });
 
       const { data, error, status } = await query;
       if (error) throw error;
