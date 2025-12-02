@@ -163,7 +163,13 @@ export default function Home() {
         ...cat,
         // Ensure parent_id is number or null
         parent_id: typeof cat.parent_id === 'number' ? cat.parent_id : null,
-      }));
+      }))
+      .sort((a, b) => {
+        // Extract leading numbers from category names (e.g., "1. KOŚCIÓŁ" -> 1)
+        const numA = parseInt(a.name.match(/^(\d+)\./)?.[1] || '999999', 10);
+        const numB = parseInt(b.name.match(/^(\d+)\./)?.[1] || '999999', 10);
+        return numA - numB;
+      });
   }, [categoriesData]);
 
   // Function to invalidate categories query
