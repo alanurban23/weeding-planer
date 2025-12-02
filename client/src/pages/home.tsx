@@ -155,8 +155,9 @@ export default function Home() {
       return [];
     }
     // Filter out any potentially invalid category data and ensure IDs are numbers
+    // Only show main categories (parent_id === null) on the home page
     return categoriesData
-      .filter(cat => cat && typeof cat.id === 'number' && !isNaN(cat.id) && typeof cat.name === 'string')
+      .filter(cat => cat && typeof cat.id === 'number' && !isNaN(cat.id) && typeof cat.name === 'string' && cat.parent_id === null)
       .map(cat => ({
         ...cat,
         // Ensure parent_id is number or null
