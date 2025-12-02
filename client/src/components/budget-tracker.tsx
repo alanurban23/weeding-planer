@@ -217,7 +217,7 @@ const BudgetTracker: React.FC = () => {
       <CardContent className="flex flex-col md:flex-row gap-6">
         {/* Chart Section */}
         <div className="flex-1 flex flex-col items-center">
-          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[250px]">
+          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[350px] md:h-[400px]">
             <PieChart>
               <ChartTooltip
                 cursor={false}
@@ -250,6 +250,14 @@ const BudgetTracker: React.FC = () => {
                 nameKey="name"
                 innerRadius={60}
                 strokeWidth={5}
+                label={(entry) => {
+                  const percentage = TOTAL_BUDGET > 0 ? ((entry.value / TOTAL_BUDGET) * 100).toFixed(0) : 0;
+                  return `${entry.name} (${percentage}%)`;
+                }}
+                labelLine={{
+                  stroke: 'hsl(var(--muted-foreground))',
+                  strokeWidth: 1.5
+                }}
               >
                  {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
