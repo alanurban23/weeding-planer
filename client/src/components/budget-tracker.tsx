@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,17 @@ const BudgetTracker: React.FC = () => {
   const [dueDate, setDueDate] = useState('');
   const [paidDate, setPaidDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Fetch costs
   const { data: costs = [], isLoading: isLoadingCosts } = useQuery<Cost[]>({
@@ -217,7 +228,7 @@ const BudgetTracker: React.FC = () => {
       <CardContent className="flex flex-col md:flex-row gap-6">
         {/* Chart Section */}
         <div className="flex-1 flex flex-col items-center">
-          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[250px]">
+          <ChartContainer config={chartConfig} className="mx-auto aspect-square h-[350px] md:h-[400px]">
             <PieChart>
               <ChartTooltip
                 cursor={false}
@@ -250,6 +261,14 @@ const BudgetTracker: React.FC = () => {
                 nameKey="name"
                 innerRadius={60}
                 strokeWidth={5}
+                label={!isMobile ? (entry) => {
+                  const percentage = TOTAL_BUDGET > 0 ? ((entry.value / TOTAL_BUDGET) * 100).toFixed(0) : 0;
+                  return `${entry.name} (${percentage}%)`;
+                } : false}
+                labelLine={!isMobile ? {
+                  stroke: 'hsl(var(--muted-foreground))',
+                  strokeWidth: 1.5
+                } : false}
               >
                  {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -267,15 +286,26 @@ const BudgetTracker: React.FC = () => {
           </div>
           <div className="mt-4 w-full">
             <h4 className="text-sm font-semibold mb-2">Wydatki według kategorii</h4>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              {categoryTotals.map((category) => (
-                <li key={category.categoryId ?? 'uncategorized'} className="flex justify-between">
-                  <span>{category.name}</span>
-                  <span className="font-medium text-foreground">
-                    {category.total.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
-                  </span>
-                </li>
-              ))}
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              {categoryTotals.map((category, index) => {
+                const categoryColor = generateColor(index, categoryTotals.length);
+                const percentage = TOTAL_BUDGET > 0 ? ((category.total / TOTAL_BUDGET) * 100).toFixed(1) : 0;
+                return (
+                  <li key={category.categoryId ?? 'uncategorized'} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: categoryColor }}
+                      />
+                      <span className="truncate">{category.name}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">({percentage}%)</span>
+                    </div>
+                    <span className="font-medium text-foreground flex-shrink-0">
+                      {category.total.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                    </span>
+                  </li>
+                );
+              })}
               {categoryTotals.length === 0 && !isLoadingCosts && (
                 <li className="text-center text-xs text-muted-foreground">Brak wydatków do wyświetlenia.</li>
               )}
