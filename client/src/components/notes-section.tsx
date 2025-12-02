@@ -9,6 +9,16 @@ import AddNote from "./AddNote.tsx";
 import { getNotes, Note, deleteNote, updateNote } from "@/lib/api.ts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface NotesSectionProps {
   onCreateFromNote: (content: string, category: string) => void;
@@ -54,6 +64,8 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   // Removed local state: const [showAddNoteForm, setShowAddNoteForm] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editedContent, setEditedContent] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -164,13 +176,37 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   }, []); // No external dependencies needed
 
   const handleDeleteNote = useCallback((id: string) => {
-    // Optimistically reset swipe state before mutation if desired
-     setSwipeStates(prev => ({
-      ...prev,
-      [id]: { touchStart: 0, transform: 0, direction: null }
-    }));
-    deleteNoteMutation.mutate(id);
-  }, [deleteNoteMutation]);
+    // For uncategorized notes, show confirmation dialog
+    if (onlyWithoutCategory) {
+      setNoteToDelete(id);
+      setShowDeleteDialog(true);
+    } else {
+      // For categorized notes, delete directly without confirmation
+      setSwipeStates(prev => ({
+        ...prev,
+        [id]: { touchStart: 0, transform: 0, direction: null }
+      }));
+      deleteNoteMutation.mutate(id);
+    }
+  }, [deleteNoteMutation, onlyWithoutCategory]);
+
+  const confirmDeleteNote = useCallback(() => {
+    if (noteToDelete) {
+      // Reset swipe state before mutation
+      setSwipeStates(prev => ({
+        ...prev,
+        [noteToDelete]: { touchStart: 0, transform: 0, direction: null }
+      }));
+      deleteNoteMutation.mutate(noteToDelete);
+      setShowDeleteDialog(false);
+      setNoteToDelete(null);
+    }
+  }, [noteToDelete, deleteNoteMutation]);
+
+  const cancelDeleteNote = useCallback(() => {
+    setShowDeleteDialog(false);
+    setNoteToDelete(null);
+  }, []);
 
   const handleUpdateNote = useCallback(() => {
     if (!editingNote || !editedContent.trim()) return; // Prevent saving empty notes
@@ -424,6 +460,21 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
           </ul>
         )}
       </div>
+
+      <AlertDialog open={showDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Czy na pewno chcesz usunąć tę notatkę?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ta akcja jest nieodwracalna i spowoduje trwałe usunięcie notatki.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteNote}>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteNote}>Usuń</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
