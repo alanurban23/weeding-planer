@@ -4,6 +4,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from "@/hooks/use-toast";
 import { Task } from '@shared/schema';
 import TaskList from '@/components/task-list';
+import TaskItem from '@/components/task-item';
 import TaskForm, { EditingTask } from '@/components/task-form';
 import MobileNavigation from '@/components/mobile-navigation';
 import { NotesSection } from '@/components/notes-section';
@@ -360,93 +361,54 @@ export default function Home() {
                     {groupedUpcomingTasks.overdue.length > 0 && (
                       <div className="mb-4">
                         <h3 className="text-sm font-medium text-red-500 mb-2">Po terminie:</h3>
-                        <div className="space-y-2">
+                        <ul className="space-y-2">
                           {groupedUpcomingTasks.overdue.map(task => (
-                            <div
+                            <TaskItem
                               key={task.id}
-                              className="flex items-center justify-between p-3 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <input
-                                  type="checkbox"
-                                  checked={task.completed}
-                                  onChange={() => handleToggleTaskCompletion(task.id)}
-                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <div onClick={() => handleEditTask(task)} className="cursor-pointer">
-                                  <h4 className="font-medium">{task.title}</h4>
-                                  <p className="text-xs text-gray-500">{task.category}</p>
-                                </div>
-                              </div>
-                              <div className="text-sm font-medium text-red-500">
-                                {task.dueDate && new Date(task.dueDate).toLocaleDateString('pl-PL')}
-                              </div>
-                            </div>
+                              task={task}
+                              onToggleCompletion={handleToggleTaskCompletion}
+                              onEdit={handleEditTask}
+                              onDelete={handleDeleteTask}
+                              onShowDetails={handleEditTask}
+                            />
                           ))}
-                        </div>
+                        </ul>
                       </div>
                     )}
 
                     {groupedUpcomingTasks.today.length > 0 && (
                       <div className="mb-4">
                         <h3 className="text-sm font-medium text-blue-500 mb-2">Na dzisiaj:</h3>
-                        <div className="space-y-2">
+                        <ul className="space-y-2">
                           {groupedUpcomingTasks.today.map(task => (
-                            <div
+                            <TaskItem
                               key={task.id}
-                              className="flex items-center justify-between p-3 border border-blue-200 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <input
-                                  type="checkbox"
-                                  checked={task.completed}
-                                  onChange={() => handleToggleTaskCompletion(task.id)}
-                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <div onClick={() => handleEditTask(task)} className="cursor-pointer">
-                                  <h4 className="font-medium">{task.title}</h4>
-                                  <p className="text-xs text-gray-500">{task.category}</p>
-                                </div>
-                              </div>
-                              <div className="text-sm font-medium text-blue-500">
-                                Dzisiaj
-                              </div>
-                            </div>
+                              task={task}
+                              onToggleCompletion={handleToggleTaskCompletion}
+                              onEdit={handleEditTask}
+                              onDelete={handleDeleteTask}
+                              onShowDetails={handleEditTask}
+                            />
                           ))}
-                        </div>
+                        </ul>
                       </div>
                     )}
 
                     {groupedUpcomingTasks.upcoming.length > 0 && (
                       <div>
                         <h3 className="text-sm font-medium text-amber-500 mb-2">Nadchodzące:</h3>
-                        <div className="space-y-2">
+                        <ul className="space-y-2">
                           {groupedUpcomingTasks.upcoming.map(task => (
-                            <div
+                            <TaskItem
                               key={task.id}
-                              className="flex items-center justify-between p-3 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
-                            >
-                              <div className="flex items-center gap-3">
-                                <input
-                                  type="checkbox"
-                                  checked={task.completed}
-                                  onChange={() => handleToggleTaskCompletion(task.id)}
-                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <div onClick={() => handleEditTask(task)} className="cursor-pointer">
-                                  <h4 className="font-medium">{task.title}</h4>
-                                  <p className="text-xs text-gray-500">{task.category}</p>
-                                </div>
-                              </div>
-                              <div className="text-sm font-medium text-amber-500">
-                                {task.dueDate && new Date(task.dueDate).toLocaleDateString('pl-PL')}
-                              </div>
-                            </div>
+                              task={task}
+                              onToggleCompletion={handleToggleTaskCompletion}
+                              onEdit={handleEditTask}
+                              onDelete={handleDeleteTask}
+                              onShowDetails={handleEditTask}
+                            />
                           ))}
-                        </div>
+                        </ul>
                       </div>
                     )}
                   </>
