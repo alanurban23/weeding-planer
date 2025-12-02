@@ -176,19 +176,10 @@ export const NotesSection: React.FC<NotesSectionProps> = ({
   }, []); // No external dependencies needed
 
   const handleDeleteNote = useCallback((id: string) => {
-    // For uncategorized notes, show confirmation dialog
-    if (onlyWithoutCategory) {
-      setNoteToDelete(id);
-      setShowDeleteDialog(true);
-    } else {
-      // For categorized notes, delete directly without confirmation
-      setSwipeStates(prev => ({
-        ...prev,
-        [id]: { touchStart: 0, transform: 0, direction: null }
-      }));
-      deleteNoteMutation.mutate(id);
-    }
-  }, [deleteNoteMutation, onlyWithoutCategory]);
+    // Always show confirmation dialog before deleting a note
+    setNoteToDelete(id);
+    setShowDeleteDialog(true);
+  }, []);
 
   const confirmDeleteNote = useCallback(() => {
     if (noteToDelete) {
