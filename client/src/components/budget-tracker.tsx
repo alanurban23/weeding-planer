@@ -75,7 +75,7 @@ const BudgetTracker: React.FC = () => {
 
   // Add cost mutation
   const addCostMutation = useMutation({
-    mutationFn: (newCost: {
+    mutationFn: async (newCost: {
       name: string;
       value: number;
       category_id: number | null;
@@ -83,7 +83,21 @@ const BudgetTracker: React.FC = () => {
       due_date?: string | null;
       paid_date?: string | null;
       notes?: string | null;
-    }) => apiRequest('/api/costs', 'POST', newCost),
+    }) => {
+      // First, create the cost
+      const createdCost = await apiRequest('/api/costs', 'POST', newCost);
+
+      // If paid_date is provided, create a payment history entry
+      if (newCost.paid_date && createdCost.id) {
+        await apiRequest('/api/payments', 'POST', {
+          cost_id: createdCost.id,
+          amount: newCost.value,
+          note: 'Płatność dodana podczas tworzenia kosztu',
+        });
+      }
+
+      return createdCost;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/costs'] });
       setCostName('');
@@ -150,9 +164,9 @@ const BudgetTracker: React.FC = () => {
     });
   };
 
-  // Calculate total spent
+  // Calculate total spent (only amounts that have been paid)
   const totalSpent = useMemo(() => {
-    return costs.reduce((sum, cost) => sum + cost.value, 0);
+    return costs.reduce((sum, cost) => sum + (cost.amount_paid || 0), 0);
   }, [costs]);
 
   const remainingBudget = TOTAL_BUDGET - totalSpent;
@@ -168,12 +182,16 @@ const BudgetTracker: React.FC = () => {
   const categoryTotals = useMemo(() => {
     const totals = new Map<string, { categoryId: number | null; name: string; total: number }>();
     costs.forEach((cost) => {
-      const categoryId = cost.category_id ?? null;
-      const mapKey = categoryId === null ? 'uncategorized' : String(categoryId);
-      const name = cost.category_name ?? (categoryId !== null ? categoryMap.get(categoryId) ?? `Kategoria #${categoryId}` : 'Bez kategorii');
-      const entry = totals.get(mapKey) ?? { categoryId, name: name ?? 'Bez kategorii', total: 0 };
-      entry.total += cost.value;
-      totals.set(mapKey, entry);
+      const amountPaid = cost.amount_paid || 0;
+      // Only include categories with paid amounts
+      if (amountPaid > 0) {
+        const categoryId = cost.category_id ?? null;
+        const mapKey = categoryId === null ? 'uncategorized' : String(categoryId);
+        const name = cost.category_name ?? (categoryId !== null ? categoryMap.get(categoryId) ?? `Kategoria #${categoryId}` : 'Bez kategorii');
+        const entry = totals.get(mapKey) ?? { categoryId, name: name ?? 'Bez kategorii', total: 0 };
+        entry.total += amountPaid;
+        totals.set(mapKey, entry);
+      }
     });
     return Array.from(totals.values()).sort((a, b) => a.name.localeCompare(b.name, 'pl'));
   }, [costs, categoryMap]);

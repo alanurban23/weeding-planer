@@ -52,18 +52,21 @@ interface Category {
 const getPaymentStatus = (cost: Cost) => {
   const now = new Date();
   const dueDate = cost.due_date ? new Date(cost.due_date) : null;
-  const paidDate = cost.paid_date ? new Date(cost.paid_date) : null;
   const totalAmount = cost.total_amount || cost.value;
-  const paidAmount = paidDate ? cost.value : 0;
-  const isPartiallyPaid = totalAmount > paidAmount && paidAmount > 0;
+  const paidAmount = cost.amount_paid || 0;
+  const remaining = totalAmount - paidAmount;
 
-  if (paidDate) {
-    if (isPartiallyPaid) {
-      return { label: 'Częściowo zapłacone', variant: 'secondary' as const };
-    }
-    return { label: 'Zapłacone', variant: 'default' as const };
+  // Check if fully paid
+  if (remaining <= 0 && paidAmount > 0) {
+    return { label: 'Opłacone', variant: 'default' as const };
   }
 
+  // Check if partially paid
+  if (paidAmount > 0 && remaining > 0) {
+    return { label: 'Częściowo zapłacone', variant: 'secondary' as const };
+  }
+
+  // Not paid - check due date
   if (dueDate) {
     const daysDiff = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
