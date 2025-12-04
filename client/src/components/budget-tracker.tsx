@@ -87,12 +87,16 @@ const BudgetTracker: React.FC = () => {
       // First, create the cost
       const createdCost = await apiRequest('/api/costs', 'POST', newCost);
 
-      // If paid_date is provided, create a payment history entry
-      if (newCost.paid_date && createdCost.id) {
+      // Create a payment history entry if:
+      // 1. paid_date is provided, OR
+      // 2. total_amount is provided (meaning this is a partial payment)
+      if (createdCost.id && (newCost.paid_date || newCost.total_amount)) {
         await apiRequest('/api/payments', 'POST', {
           cost_id: createdCost.id,
           amount: newCost.value,
-          note: 'Płatność dodana podczas tworzenia kosztu',
+          note: newCost.paid_date
+            ? 'Płatność dodana podczas tworzenia kosztu'
+            : 'Płatność częściowa dodana podczas tworzenia kosztu',
         });
       }
 
