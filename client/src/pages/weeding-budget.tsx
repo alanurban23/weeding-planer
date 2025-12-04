@@ -198,6 +198,21 @@ const WeedingBudgetPage: React.FC = () => {
                                 {cost.notes}
                               </p>
                             )}
+                            {/* Show payment info on mobile */}
+                            <div className="lg:hidden mt-2 space-y-1 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Zapłacone:</span>
+                                <span className="font-medium text-green-600">
+                                  {amountPaid.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Pozostało:</span>
+                                <span className={`font-medium ${remaining > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                                  {remaining.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN' })}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -235,22 +250,24 @@ const WeedingBudgetPage: React.FC = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => setEditingCost(cost)}
                               title="Edytuj koszt"
+                              className="h-8 w-8"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3 w-3 md:h-4 md:w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => setDeletingCostId(cost.id)}
                               title="Usuń koszt"
+                              className="h-8 w-8"
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              <Trash2 className="h-3 w-3 md:h-4 md:w-4 text-destructive" />
                             </Button>
                           </div>
                         </TableCell>
