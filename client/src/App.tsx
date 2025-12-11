@@ -11,6 +11,7 @@ const CategoryPage = lazy(() => import("@/pages/category"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const WeedingBudgetPage = lazy(() => import("@/pages/weeding-budget"));
 const GuestListPage = lazy(() => import("@/pages/guest-list"));
+const MentoringPage = lazy(() => import("@/pages/mentoring"));
 
 // Tworzenie routera z użyciem createBrowserRouter zamiast wouter
 const router = createBrowserRouter([
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
   {
     path: "/guest-list",
     element: <GuestListPage />,
+  },
+  {
+    path: "/mentoring",
+    element: <MentoringPage />,
   }
 ]);
 
