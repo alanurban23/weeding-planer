@@ -98,6 +98,7 @@ export type UpdateNote = z.infer<typeof updateNoteSchema>;
 export const guests = pgTable("guests", {
   id: serial("id").primaryKey(),
   full_name: text("full_name").notNull(),
+  guest_count: integer("guest_count").notNull().default(1),
   email: text("email"),
   phone: text("phone"),
   side: text("side"),
@@ -109,6 +110,7 @@ export const guests = pgTable("guests", {
 const baseGuestSchema = z.object({
   id: z.number(),
   fullName: z.string(),
+  guestCount: z.number().int().min(1).default(1),
   email: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   side: z.string().nullable().optional(),
@@ -123,6 +125,7 @@ export const updateGuestSchema = baseGuestSchema.partial();
 export interface Guest {
   id: number;
   fullName: string;
+  guestCount: number;
   email: string | null;
   phone: string | null;
   side: string | null;
