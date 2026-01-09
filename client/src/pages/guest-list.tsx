@@ -42,6 +42,7 @@ const RSVP_BADGE_STYLES: Record<Guest['rsvpStatus'], string> = {
 
 const DEFAULT_FORM_VALUES = {
   fullName: '',
+  guestCount: 1,
   email: '',
   phone: '',
   side: '',
@@ -51,6 +52,7 @@ const DEFAULT_FORM_VALUES = {
 
 interface GuestFormValues {
   fullName: string;
+  guestCount: number;
   email: string;
   phone: string;
   side: string;
@@ -69,6 +71,14 @@ const HEADER_MAP: Record<string, keyof GuestFormValues | null> = {
   'name': 'fullName',
   'imie i nazwisko': 'fullName',
   'imię i nazwisko': 'fullName',
+  'nazwa grupy': 'fullName',
+  'grupa': 'fullName',
+  'guest_count': 'guestCount',
+  'guestcount': 'guestCount',
+  'liczba osob': 'guestCount',
+  'liczba osób': 'guestCount',
+  'ilosc': 'guestCount',
+  'ilość': 'guestCount',
   'email': 'email',
   'mail': 'email',
   'phone': 'phone',
@@ -174,13 +184,16 @@ const parseCsvContent = (content: string): ParsedCsvResult => {
       const rawValue = values[headerIndex] ?? '';
       if (field === 'rsvpStatus') {
         record[field] = normalizeStatus(rawValue);
+      } else if (field === 'guestCount') {
+        const count = parseInt(rawValue.trim(), 10);
+        record[field] = !isNaN(count) && count > 0 ? count : 1;
       } else {
         record[field] = rawValue.trim();
       }
     });
 
     if (!record.fullName) {
-      errors.push(`Wiersz ${rowIndex}: brak imienia i nazwiska.`);
+      errors.push(`Wiersz ${rowIndex}: brak nazwy grupy.`);
       return;
     }
 
@@ -192,9 +205,10 @@ const parseCsvContent = (content: string): ParsedCsvResult => {
 };
 
 const downloadTemplate = () => {
-  const header = 'full_name,email,phone,side,rsvp_status,notes';
-  const sample = 'Jan Kowalski,jan@example.com,600700800,Pan młody,confirmed,Bez alergii';
-  const blob = new Blob([`${header}\n${sample}`], { type: 'text/csv;charset=utf-8;' });
+  const header = 'full_name,guest_count,email,phone,side,rsvp_status,notes';
+  const sample1 = 'Zespół muzyczny,5,kontakt@zespol.pl,600700800,Pan młody,confirmed,5 osób';
+  const sample2 = 'Andzia z mężem i dzieckiem,3,andzia@example.com,600111222,Panna Młoda,pending,Rodzina z dzieckiem';
+  const blob = new Blob([`${header}\n${sample1}\n${sample2}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -236,12 +250,12 @@ const GuestListPage: React.FC = () => {
     mutationFn: (payload: GuestFormValues) => apiRequest('/api/guests', 'POST', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/guests'] });
-      toast({ title: 'Gość dodany', description: 'Nowy gość został dodany do listy.' });
+      toast({ title: 'Grupa dodana', description: 'Nowa grupa gości została dodana do listy.' });
       setFormValues({ ...DEFAULT_FORM_VALUES });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Błąd dodawania gościa',
+        title: 'Błąd dodawania grupy',
         description: error.message,
         variant: 'destructive',
       });
@@ -280,7 +294,7 @@ const GuestListPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/guests'] });
       setUpdatingGuestId(null);
-      toast({ title: 'Dane gościa zaktualizowane' });
+      toast({ title: 'Dane grupy zaktualizowane' });
     },
     onError: (error: Error) => {
       setUpdatingGuestId(null);
@@ -296,7 +310,7 @@ const GuestListPage: React.FC = () => {
     mutationFn: (id: number) => apiRequest(`/api/guests/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/guests'] });
-      toast({ title: 'Gość usunięty', description: 'Gość został usunięty z listy.' });
+      toast({ title: 'Grupa usunięta', description: 'Grupa została usunięta z listy.' });
     },
     onError: (error: Error) => {
       toast({
@@ -325,14 +339,20 @@ const GuestListPage: React.FC = () => {
   }, [guests, searchTerm, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = guests.length;
-    const confirmed = guests.filter((guest) => guest.rsvpStatus === 'confirmed').length;
-    const pending = guests.filter((guest) => guest.rsvpStatus === 'pending').length;
-    const declined = guests.filter((guest) => guest.rsvpStatus === 'declined').length;
+    const total = guests.reduce((sum, guest) => sum + (guest.guestCount || 1), 0);
+    const confirmed = guests
+      .filter((guest) => guest.rsvpStatus === 'confirmed')
+      .reduce((sum, guest) => sum + (guest.guestCount || 1), 0);
+    const pending = guests
+      .filter((guest) => guest.rsvpStatus === 'pending')
+      .reduce((sum, guest) => sum + (guest.guestCount || 1), 0);
+    const declined = guests
+      .filter((guest) => guest.rsvpStatus === 'declined')
+      .reduce((sum, guest) => sum + (guest.guestCount || 1), 0);
     return { total, confirmed, pending, declined };
   }, [guests]);
 
-  const handleFormChange = (field: keyof GuestFormValues, value: string) => {
+  const handleFormChange = (field: keyof GuestFormValues, value: string | number) => {
     setFormValues((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -340,8 +360,16 @@ const GuestListPage: React.FC = () => {
     event.preventDefault();
     if (!formValues.fullName.trim()) {
       toast({
-        title: 'Brak imienia i nazwiska',
-        description: 'Podaj imię i nazwisko gościa.',
+        title: 'Brak nazwy grupy',
+        description: 'Podaj nazwę grupy gości.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (formValues.guestCount < 1) {
+      toast({
+        title: 'Nieprawidłowa liczba osób',
+        description: 'Liczba osób musi być co najmniej 1.',
         variant: 'destructive',
       });
       return;
@@ -355,7 +383,7 @@ const GuestListPage: React.FC = () => {
   };
 
   const handleDeleteGuest = (id: number) => {
-    if (!window.confirm('Czy na pewno chcesz usunąć tego gościa?')) {
+    if (!window.confirm('Czy na pewno chcesz usunąć tę grupę?')) {
       return;
     }
     deleteGuestMutation.mutate(id);
@@ -483,7 +511,7 @@ const GuestListPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">Wszyscy goście na liście</p>
+              <p className="text-xs text-muted-foreground">Łączna liczba wszystkich osób</p>
             </CardContent>
           </Card>
           <Card>
@@ -493,7 +521,7 @@ const GuestListPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.confirmed}</div>
-              <p className="text-xs text-muted-foreground">Goście, którzy potwierdzili obecność</p>
+              <p className="text-xs text-muted-foreground">Liczba osób, które potwierdziły</p>
             </CardContent>
           </Card>
           <Card>
@@ -503,7 +531,7 @@ const GuestListPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.pending}</div>
-              <p className="text-xs text-muted-foreground">Goście bez odpowiedzi</p>
+              <p className="text-xs text-muted-foreground">Liczba osób bez odpowiedzi</p>
             </CardContent>
           </Card>
           <Card>
@@ -513,7 +541,7 @@ const GuestListPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.declined}</div>
-              <p className="text-xs text-muted-foreground">Goście, którzy nie przyjdą</p>
+              <p className="text-xs text-muted-foreground">Liczba osób, które nie przyjdą</p>
             </CardContent>
           </Card>
         </section>
@@ -521,8 +549,8 @@ const GuestListPage: React.FC = () => {
         <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
           <Card className="overflow-hidden">
             <CardHeader>
-              <CardTitle>Lista gości</CardTitle>
-              <CardDescription>Wyszukuj, filtruj i zarządzaj statusami RSVP.</CardDescription>
+              <CardTitle>Lista grup gości</CardTitle>
+              <CardDescription>Wyszukuj, filtruj i zarządzaj grupami oraz ich statusami RSVP.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -555,7 +583,8 @@ const GuestListPage: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Imię i nazwisko</TableHead>
+                      <TableHead>Nazwa grupy</TableHead>
+                      <TableHead>Liczba osób</TableHead>
                       <TableHead>Kontakt</TableHead>
                       <TableHead>Strona</TableHead>
                       <TableHead>Status RSVP</TableHead>
@@ -566,7 +595,7 @@ const GuestListPage: React.FC = () => {
                   <TableBody>
                     {isLoading && (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
                           <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
                           Ładowanie listy gości…
                         </TableCell>
@@ -575,7 +604,7 @@ const GuestListPage: React.FC = () => {
 
                     {isError && (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-6 text-center text-sm text-red-600">
+                        <TableCell colSpan={7} className="py-6 text-center text-sm text-red-600">
                           Nie udało się pobrać listy gości. Odśwież stronę lub spróbuj ponownie później.
                         </TableCell>
                       </TableRow>
@@ -583,7 +612,7 @@ const GuestListPage: React.FC = () => {
 
                     {!isLoading && filteredGuests.length === 0 && !isError && (
                       <TableRow>
-                        <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={7} className="py-6 text-center text-sm text-muted-foreground">
                           Brak gości spełniających kryteria wyszukiwania.
                         </TableCell>
                       </TableRow>
@@ -598,6 +627,12 @@ const GuestListPage: React.FC = () => {
                               Dodano {new Date(guest.createdAt).toLocaleDateString('pl-PL')}
                             </p>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{guest.guestCount || 1}</span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1 text-sm">
@@ -657,18 +692,30 @@ const GuestListPage: React.FC = () => {
 
           <Card className="h-fit">
             <CardHeader>
-              <CardTitle>Dodaj gościa ręcznie</CardTitle>
-              <CardDescription>Wypełnij formularz, aby dodać pojedynczego gościa.</CardDescription>
+              <CardTitle>Dodaj grupę gości</CardTitle>
+              <CardDescription>Wypełnij formularz, aby dodać grupę gości do listy.</CardDescription>
             </CardHeader>
             <CardContent>
               <form className="space-y-4" onSubmit={handleAddGuest}>
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Imię i nazwisko *</Label>
+                  <Label htmlFor="fullName">Nazwa grupy *</Label>
                   <Input
                     id="fullName"
                     value={formValues.fullName}
                     onChange={(event) => handleFormChange('fullName', event.target.value)}
-                    placeholder="np. Jan Kowalski"
+                    placeholder="np. Zespół muzyczny, Andzia z mężem i dzieckiem"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guestCount">Liczba osób *</Label>
+                  <Input
+                    id="guestCount"
+                    type="number"
+                    min="1"
+                    value={formValues.guestCount}
+                    onChange={(event) => handleFormChange('guestCount', parseInt(event.target.value, 10) || 1)}
+                    placeholder="Liczba osób w grupie"
                     required
                   />
                 </div>
@@ -739,7 +786,7 @@ const GuestListPage: React.FC = () => {
                   ) : (
                     <>
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Dodaj gościa
+                      Dodaj grupę
                     </>
                   )}
                 </Button>

@@ -68,6 +68,7 @@ const formatGuest = (guest) => {
   return {
     id: guest.id,
     fullName: guest.full_name,
+    guestCount: guest.guest_count || 1,
     email: guest.email,
     phone: guest.phone,
     side: guest.side,
@@ -110,6 +111,14 @@ const buildGuestPayload = (payload, { allowPartial = false } = {}) => {
       throw new Error('Guest fullName is required.');
     }
     result.full_name = fullName;
+  }
+  if ('guestCount' in payload || !allowPartial) {
+    const guestCount = parseInt(payload.guestCount, 10);
+    if (isNaN(guestCount) || guestCount < 1) {
+      result.guest_count = 1; // default to 1 if invalid
+    } else {
+      result.guest_count = guestCount;
+    }
   }
   if ('email' in payload || !allowPartial) {
     result.email = sanitizeText(payload.email);
@@ -211,6 +220,13 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'fullName must be a non-empty string.' });
         }
         updatePayload.full_name = fullName;
+      }
+      if ('guestCount' in body) {
+        const guestCount = parseInt(body.guestCount, 10);
+        if (isNaN(guestCount) || guestCount < 1) {
+          return res.status(400).json({ error: 'guestCount must be a positive integer.' });
+        }
+        updatePayload.guest_count = guestCount;
       }
       if ('email' in body) updatePayload.email = sanitizeText(body.email);
       if ('phone' in body) updatePayload.phone = sanitizeText(body.phone);
