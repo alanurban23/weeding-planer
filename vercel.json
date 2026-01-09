@@ -73,6 +73,20 @@
       "headers": {
         "Access-Control-Allow-Origin": "*"
       }
+    },
+    {
+      "src": "/api/guests",
+      "dest": "api/guests.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "src": "/api/guests/(.*)",
+      "dest": "api/guests.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
     }
   ]
 }
