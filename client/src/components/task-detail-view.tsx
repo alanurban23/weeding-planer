@@ -49,8 +49,7 @@ const TaskDetailView: React.FC<TaskDetailViewProps> = ({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      {/* Added h-[95vh] sm:h-auto for mobile full height */}
-      <DialogContent className="sm:max-w-md h-[100vh] sm:h-auto overflow-y-auto"> 
+      <DialogContent className="sm:max-w-md max-h-[90vh] sm:max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Szczegóły zadania</DialogTitle>
           {/* Added DialogDescription for accessibility */}
