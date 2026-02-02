@@ -1,4 +1,4 @@
-import React, { ChangeEvent, useMemo, useState } from 'react';
+import React, { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Guest } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -22,11 +22,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Trash2, Upload, Users, UserPlus, CheckCircle2, Clock3, XCircle, FileDown } from 'lucide-react';
+import { Loader2, Trash2, Upload, Users, UserPlus, CheckCircle2, Clock3, XCircle, FileDown, StickyNote, List, Save } from 'lucide-react';
 
 const RSVP_OPTIONS: { value: Guest['rsvpStatus']; label: string }[] = [
   { value: 'pending', label: 'Oczekuje' },
@@ -230,6 +231,10 @@ const GuestListPage: React.FC = () => {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [updatingGuestId, setUpdatingGuestId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('table');
+  const [noteContent, setNoteContent] = useState<string>('');
+  const [noteLoaded, setNoteLoaded] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: guests = [], isLoading, isError } = useQuery<Guest[]>({
     queryKey: ['/api/guests'],
@@ -320,6 +325,57 @@ const GuestListPage: React.FC = () => {
       });
     },
   });
+
+  // --- Notatka listy gości ---
+  const { data: noteData, isLoading: isNoteLoading } = useQuery<{ id: number | null; content: string; updatedAt: string | null }>({
+    queryKey: ['/api/guest-list-note'],
+    queryFn: () => apiRequest('/api/guest-list-note'),
+  });
+
+  useEffect(() => {
+    if (noteData && !noteLoaded) {
+      setNoteContent(noteData.content || '');
+      setNoteLoaded(true);
+    }
+  }, [noteData, noteLoaded]);
+
+  const saveNoteMutation = useMutation({
+    mutationFn: (content: string) => apiRequest('/api/guest-list-note', 'PUT', { content }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/guest-list-note'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Błąd zapisu notatki',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleNoteChange = useCallback((value: string) => {
+    setNoteContent(value);
+    // Auto-save z debounce 1s
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveNoteMutation.mutate(value);
+    }, 1000);
+  }, [saveNoteMutation]);
+
+  const handleNoteSaveNow = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    saveNoteMutation.mutate(noteContent);
+  }, [saveNoteMutation, noteContent]);
+
+  const noteLineCount = useMemo(() => {
+    if (!noteContent) return 0;
+    return noteContent.split('\n').filter(line => line.trim().length > 0).length;
+  }, [noteContent]);
 
   const filteredGuests = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -503,6 +559,70 @@ const GuestListPage: React.FC = () => {
       </header>
 
       <main className="max-w-6xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <List className="h-4 w-4" />
+              Tabelka
+            </TabsTrigger>
+            <TabsTrigger value="note" className="flex items-center gap-2">
+              <StickyNote className="h-4 w-4" />
+              Notatka
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="note" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Lista gości - notatka</CardTitle>
+                    <CardDescription>
+                      Wpisz gości po jednym w linii. Zmiany zapisują się automatycznie.
+                      {noteLineCount > 0 && (
+                        <span className="ml-2 font-medium">({noteLineCount} {noteLineCount === 1 ? 'pozycja' : noteLineCount < 5 ? 'pozycje' : 'pozycji'})</span>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {saveNoteMutation.isPending && (
+                      <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Zapisywanie...
+                      </span>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNoteSaveNow}
+                      disabled={saveNoteMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      Zapisz
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isNoteLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <Textarea
+                    value={noteContent}
+                    onChange={(e) => handleNoteChange(e.target.value)}
+                    placeholder={"Tata\nMama\nZespół\nFotograf\nAndzia + mąż + dziecko\n..."}
+                    className="min-h-[400px] font-mono text-base leading-relaxed resize-y"
+                    rows={20}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="table" className="mt-6 space-y-6">
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="border-t-4 border-t-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -794,6 +914,8 @@ const GuestListPage: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
