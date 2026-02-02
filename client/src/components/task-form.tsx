@@ -3,6 +3,7 @@ import { Task } from '@shared/schema';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { 
   Select, 
@@ -166,7 +167,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
   return (
     <Dialog open={show} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md h-[100vh] sm:h-auto overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] sm:max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{task ? 'Edytuj zadanie' : 'Dodaj nowe zadanie'}</DialogTitle>
         </DialogHeader>
@@ -176,12 +177,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <Label htmlFor="task-title" className="text-base font-medium text-gray-700">
               Tytuł *
             </Label>
-            <Input
+            <Textarea
               id="task-title"
               value={editingTask.title}
               onChange={(e) => setEditingTask(prev => ({ ...prev, title: e.target.value }))}
               placeholder="Np. Zarezerwować salę weselną"
-              className="text-lg sm:text-base"
+              className="text-lg sm:text-base min-h-[60px] resize-none"
+              rows={2}
               required
             />
           </div>
