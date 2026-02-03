@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Trash2, Upload, Users, UserPlus, CheckCircle2, Clock3, XCircle, FileDown, StickyNote, List, Save } from 'lucide-react';
+import { Loader2, Trash2, Upload, Users, UserPlus, CheckCircle2, Clock3, XCircle, FileDown, StickyNote, List, Save, Copy } from 'lucide-react';
 
 const RSVP_OPTIONS: { value: Guest['rsvpStatus']; label: string }[] = [
   { value: 'pending', label: 'Oczekuje' },
@@ -372,6 +372,21 @@ const GuestListPage: React.FC = () => {
     saveNoteMutation.mutate(noteContent);
   }, [saveNoteMutation, noteContent]);
 
+  const handleCopyFromTable = useCallback(() => {
+    if (guests.length === 0) {
+      toast({ title: 'Brak gości', description: 'Tabelka jest pusta.', variant: 'destructive' });
+      return;
+    }
+    const text = guests
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'pl'))
+      .map((g) => g.fullName)
+      .join('\n');
+    const newContent = noteContent.trim() ? noteContent.trim() + '\n' + text : text;
+    setNoteContent(newContent);
+    saveNoteMutation.mutate(newContent);
+    toast({ title: 'Skopiowano', description: `${guests.length} pozycji z tabelki do notatki.` });
+  }, [guests, noteContent, saveNoteMutation, toast]);
+
   const noteLineCount = useMemo(() => {
     if (!noteContent) return 0;
     return noteContent.split('\n').filter(line => line.trim().length > 0).length;
@@ -584,13 +599,23 @@ const GuestListPage: React.FC = () => {
                       )}
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     {saveNoteMutation.isPending && (
                       <span className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Zapisywanie...
                       </span>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyFromTable}
+                      disabled={guests.length === 0}
+                      className="flex items-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Kopiuj z tabelki
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
