@@ -75,6 +75,13 @@
       }
     },
     {
+      "src": "/api/guest-list-note",
+      "dest": "api/guest-list-note.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
       "src": "/api/guests",
       "dest": "api/guests.js",
       "headers": {
