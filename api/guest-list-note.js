@@ -18,6 +18,17 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const TABLE = 'guest_list_note';
 
 async function parseJsonBody(req) {
+  // Vercel may already parse the body
+  if (req.body && typeof req.body === 'object') {
+    return req.body;
+  }
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', (chunk) => {
@@ -38,6 +49,12 @@ async function parseJsonBody(req) {
       reject(err);
     });
   });
+}
+
+function getErrorMessage(error) {
+  if (!error) return 'Unknown error';
+  if (typeof error === 'string') return error;
+  return error.message || error.msg || error.details || error.hint || JSON.stringify(error);
 }
 
 export default async function handler(req, res) {
@@ -64,14 +81,16 @@ export default async function handler(req, res) {
         .select('*')
         .order('id', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        // Jeśli nie ma jeszcze wiersza, zwróć pusty
-        if (error.code === 'PGRST116') {
-          return res.status(200).json({ id: null, content: '', updatedAt: null });
-        }
-        throw error;
+        console.error('GET guest-list-note error:', JSON.stringify(error));
+        // Tabela może nie istnieć - zwróć pusty
+        return res.status(200).json({ id: null, content: '', updatedAt: null });
+      }
+
+      if (!data) {
+        return res.status(200).json({ id: null, content: '', updatedAt: null });
       }
 
       return res.status(200).json({
@@ -84,21 +103,26 @@ export default async function handler(req, res) {
     // PUT /api/guest-list-note - zapisz notatkę
     if (method === 'PUT') {
       const body = await parseJsonBody(req);
+      console.log('PUT guest-list-note body:', JSON.stringify(body));
       const content = typeof body.content === 'string' ? body.content : '';
 
       // Sprawdź czy istnieje wiersz
-      const { data: existing } = await supabase
+      const { data: existing, error: selectError } = await supabase
         .from(TABLE)
         .select('id')
         .order('id', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (selectError) {
+        console.error('SELECT guest-list-note error:', JSON.stringify(selectError));
+        return res.status(500).json({ error: 'Tabela guest_list_note nie istnieje. Uruchom migrację 0007.', details: getErrorMessage(selectError) });
+      }
 
       let data;
       let error;
 
       if (existing) {
-        // Aktualizuj istniejący wiersz
         const result = await supabase
           .from(TABLE)
           .update({ content, updated_at: new Date().toISOString() })
@@ -108,7 +132,6 @@ export default async function handler(req, res) {
         data = result.data;
         error = result.error;
       } else {
-        // Wstaw nowy wiersz
         const result = await supabase
           .from(TABLE)
           .insert({ content, updated_at: new Date().toISOString() })
@@ -118,7 +141,10 @@ export default async function handler(req, res) {
         error = result.error;
       }
 
-      if (error) throw error;
+      if (error) {
+        console.error('UPSERT guest-list-note error:', JSON.stringify(error));
+        return res.status(500).json({ error: getErrorMessage(error) });
+      }
 
       return res.status(200).json({
         id: data.id,
@@ -130,6 +156,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   } catch (error) {
     console.error('Guest list note API error:', error);
-    return res.status(500).json({ error: 'Błąd serwera: ' + error.message });
+    return res.status(500).json({ error: getErrorMessage(error) });
   }
 }
