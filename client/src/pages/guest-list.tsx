@@ -27,7 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Trash2, Upload, Users, UserPlus, CheckCircle2, Clock3, XCircle, FileDown, StickyNote, List, Save, Copy } from 'lucide-react';
+import { Loader2, Trash2, Upload, Users, UserPlus, CheckCircle2, Clock3, XCircle, FileDown, StickyNote, List, Save, Copy, Pencil } from 'lucide-react';
 
 const RSVP_OPTIONS: { value: Guest['rsvpStatus']; label: string }[] = [
   { value: 'pending', label: 'Oczekuje' },
@@ -231,6 +231,9 @@ const GuestListPage: React.FC = () => {
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [updatingGuestId, setUpdatingGuestId] = useState<number | null>(null);
+  const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
+  const [editFormValues, setEditFormValues] = useState<GuestFormValues>({ ...DEFAULT_FORM_VALUES });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('table');
   const [noteContent, setNoteContent] = useState<string>('');
   const [noteLoaded, setNoteLoaded] = useState(false);
@@ -458,6 +461,55 @@ const GuestListPage: React.FC = () => {
       return;
     }
     deleteGuestMutation.mutate(id);
+  };
+
+  const handleEditGuest = (guest: Guest) => {
+    setEditingGuest(guest);
+    setEditFormValues({
+      fullName: guest.fullName,
+      guestCount: guest.guestCount || 1,
+      email: guest.email || '',
+      phone: guest.phone || '',
+      side: guest.side || '',
+      rsvpStatus: guest.rsvpStatus,
+      notes: guest.notes || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditFormChange = (field: keyof GuestFormValues, value: string | number) => {
+    setEditFormValues((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingGuest) return;
+    if (!editFormValues.fullName.trim()) {
+      toast({
+        title: 'Brak nazwy grupy',
+        description: 'Podaj nazwę grupy gości.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (editFormValues.guestCount < 1) {
+      toast({
+        title: 'Nieprawidłowa liczba osób',
+        description: 'Liczba osób musi być co najmniej 1.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setUpdatingGuestId(editingGuest.id);
+    updateGuestMutation.mutate(
+      { id: editingGuest.id, data: editFormValues },
+      {
+        onSuccess: () => {
+          setIsEditDialogOpen(false);
+          setEditingGuest(null);
+        },
+      },
+    );
   };
 
   const handleFileSelection = (event: ChangeEvent<HTMLInputElement>) => {
@@ -734,7 +786,7 @@ const GuestListPage: React.FC = () => {
                       <TableHead>Strona</TableHead>
                       <TableHead>Status RSVP</TableHead>
                       <TableHead>Uwagi</TableHead>
-                      <TableHead className="w-[60px] text-right">Akcje</TableHead>
+                      <TableHead className="w-[100px] text-right">Akcje</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -816,16 +868,27 @@ const GuestListPage: React.FC = () => {
                           {guest.notes || '—'}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteGuest(guest.id)}
-                            disabled={deleteGuestMutation.isPending}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Usuń</span>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditGuest(guest)}
+                              className="text-gray-600 hover:text-gray-800"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edytuj</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteGuest(guest.id)}
+                              disabled={deleteGuestMutation.isPending}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Usuń</span>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -941,6 +1004,115 @@ const GuestListPage: React.FC = () => {
         </div>
           </TabsContent>
         </Tabs>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) setEditingGuest(null);
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edytuj grupę gości</DialogTitle>
+              <DialogDescription>Zmień dane grupy gości i zapisz zmiany.</DialogDescription>
+            </DialogHeader>
+            <form className="space-y-4" onSubmit={handleEditSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="edit-fullName">Nazwa grupy *</Label>
+                <Input
+                  id="edit-fullName"
+                  value={editFormValues.fullName}
+                  onChange={(event) => handleEditFormChange('fullName', event.target.value)}
+                  placeholder="np. Zespół muzyczny, Andzia z mężem i dzieckiem"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-guestCount">Liczba osób *</Label>
+                <Input
+                  id="edit-guestCount"
+                  type="number"
+                  min="1"
+                  value={editFormValues.guestCount}
+                  onChange={(event) => handleEditFormChange('guestCount', parseInt(event.target.value, 10) || 1)}
+                  placeholder="Liczba osób w grupie"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email">E-mail</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editFormValues.email}
+                    onChange={(event) => handleEditFormChange('email', event.target.value)}
+                    placeholder="jan@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone">Telefon</Label>
+                  <Input
+                    id="edit-phone"
+                    value={editFormValues.phone}
+                    onChange={(event) => handleEditFormChange('phone', event.target.value)}
+                    placeholder="600 700 800"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-side">Strona</Label>
+                <Input
+                  id="edit-side"
+                  value={editFormValues.side}
+                  onChange={(event) => handleEditFormChange('side', event.target.value)}
+                  placeholder="np. Panna Młoda"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status RSVP</Label>
+                <Select
+                  value={editFormValues.rsvpStatus}
+                  onValueChange={(value: Guest['rsvpStatus']) => handleEditFormChange('rsvpStatus', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RSVP_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-notes">Uwagi</Label>
+                <Textarea
+                  id="edit-notes"
+                  value={editFormValues.notes}
+                  onChange={(event) => handleEditFormChange('notes', event.target.value)}
+                  placeholder="Np. preferencje żywieniowe, dodatkowe informacje"
+                  rows={4}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Anuluj
+                </Button>
+                <Button type="submit" disabled={updateGuestMutation.isPending && updatingGuestId === editingGuest?.id}>
+                  {updateGuestMutation.isPending && updatingGuestId === editingGuest?.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Zapisywanie…
+                    </>
+                  ) : (
+                    'Zapisz zmiany'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
