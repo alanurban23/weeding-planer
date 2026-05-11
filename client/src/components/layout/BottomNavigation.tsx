@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  LayoutGrid,
+  MessageSquare,
   CheckSquare,
   Users,
   Wallet,
@@ -21,7 +21,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', icon: LayoutGrid, label: 'Home' },
+  { id: 'chat', icon: MessageSquare, label: 'Chat' },
   { id: 'tasks', icon: CheckSquare, label: 'Zadania' },
   { id: 'guests', icon: Users, label: 'Goście' },
   { id: 'budget', icon: Wallet, label: 'Budżet' },
@@ -34,8 +34,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
   onTabChange,
 }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50">
-      <div className="max-w-md mx-auto px-4 pb-4">
+    <nav className="z-50">
+      <div className="px-4 pb-4 pt-1">
         <div className="bg-stone-900/90 backdrop-blur-xl rounded-2xl px-2 py-2 flex items-center justify-around shadow-premium border border-stone-800/50">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
@@ -56,6 +56,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({
                   }`}
                   strokeWidth={isActive ? 2 : 1.5}
                 />
+                <span className={`text-[10px] transition-colors duration-300 ${
+                  isActive ? 'text-gold' : 'text-stone-500'
+                }`}>
+                  {item.label}
+                </span>
 
                 {/* Active indicator dot */}
                 {isActive && (
