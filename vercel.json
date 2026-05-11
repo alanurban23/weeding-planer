@@ -5,6 +5,13 @@
   "framework": "vite",
   "routes": [
     {
+      "src": "/api/ai-chat",
+      "dest": "api/ai-chat.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
       "src": "/api/notes",
       "dest": "api/notes.js",
       "headers": {
