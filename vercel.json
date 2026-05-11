@@ -3,12 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
   "framework": "vite",
-  "functions": {
-    "api/ai-chat.js": {
-      "maxDuration": 60
-    }
-  },
-  "routes": [
+"routes": [
     {
       "src": "/api/ai-chat",
       "dest": "api/ai-chat.js",
